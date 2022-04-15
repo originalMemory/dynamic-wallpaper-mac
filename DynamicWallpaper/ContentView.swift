@@ -15,8 +15,10 @@ struct ContentView: View {
             Divider()
             VStack(alignment: .leading) {
                 Spacer()
-                Button("所有视频") {}
-                Button("播放列表") {}
+                Button("所有视频") {
+                }
+                Button("播放列表") {
+                }
                 Spacer()
             }
             .padding(.horizontal, 5).frame(width: 150)
