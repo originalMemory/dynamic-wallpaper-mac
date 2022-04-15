@@ -34,10 +34,15 @@ struct ContentView: View {
         .frame(width: 1100, height: 800, alignment: .center)
     }
 
-    private var videos: [Video] = []
+//    private var videos: [Video] = []
+    @State private var vms: [VideoPreviewView.ViewModel]
+    @State private var lastSelectedIndex: Int = -1
 
     init() {
-        videos = DBManager.share.queryFromDb(fromTable: Table.video) ?? []
+        let videos: [Video] = DBManager.share.queryFromDb(fromTable: Table.video) ?? []
+        self.vms = videos.map { video in
+            VideoPreviewView.ViewModel.from(video: video)
+        }
     }
 
     var videoView: some View {
@@ -53,11 +58,14 @@ struct ContentView: View {
             }
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)) {
-                    ForEach(0..<videos.count, id: \.self) { i in
-                        let video = videos[i]
-                        VideoPreviewView(
-                            vm: VideoPreviewView.ViewModel.fromVideo(video)
-                        ).frame(height: 200)
+                    ForEach(0..<vms.count, id: \.self) { i in
+                        VideoPreviewView(vm: $vms[i]).frame(height: 200).onTapGesture {
+                            vms[i] = vms[i].copy(isSelected: true)
+                            if lastSelectedIndex >= 0 {
+                                vms[lastSelectedIndex] = vms[lastSelectedIndex].copy(isSelected: false)
+                            }
+                            lastSelectedIndex = i
+                        }
                     }
                 }
             }
