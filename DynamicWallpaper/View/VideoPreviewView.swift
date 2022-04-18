@@ -33,7 +33,6 @@ struct VideoPreviewView: View {
 
     @Binding var vm: ViewModel
     @State var isHover = false
-    @State var pressedState = PressedState.notPressed
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -67,7 +66,6 @@ struct VideoPreviewView: View {
                     ).clipShape(corner)
                 }
             }
-            .opacity(pressedState == .notPressed ? 1.0 : 0.5)
             HStack {
                 Spacer()
                 Text(vm.title)
