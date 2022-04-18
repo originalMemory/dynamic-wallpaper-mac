@@ -26,40 +26,9 @@ class VideoContentView: NSView {
     var playerLayer: AVPlayerLayer!
 
     func commInit() {
-        wantsLayer = true
-
-        playerLayer = AVPlayerLayer(player: VideoSharePlayer.shared.queuePlayer)
-        playerLayer.frame = bounds
-        playerLayer.contentsGravity = .resize
-        playerLayer.videoGravity = .resizeAspectFill
-        layer?.addSublayer(playerLayer)
-    }
-
-    func loadUrl(_ url: URL) {
-        VideoSharePlayer.shared.loadUrl(url)
-    }
-
-    override func layout() {
-        super.layout()
-        playerLayer.frame = self.bounds
-    }
-}
-
-// MARK: - VideoSharePlayer
-
-private class VideoSharePlayer: NSObject {
-    static let shared = VideoSharePlayer()
-
-    let queuePlayer = AVQueuePlayer()
-
-    private var looper: AVPlayerLooper?
-    private var url: URL?
-
-    override private init() {
-        super.init()
-
-        self.queuePlayer.isMuted = true
-        self.queuePlayer.addObserver(self, forKeyPath: "status", options: .new, context: nil)
+        // 默认静音
+        queuePlayer.isMuted = true
+        queuePlayer.addObserver(self, forKeyPath: "status", options: .new, context: nil)
 
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -73,20 +42,32 @@ private class VideoSharePlayer: NSObject {
             name: NSWorkspace.screensDidWakeNotification,
             object: nil
         )
+        wantsLayer = true
+        playerLayer = AVPlayerLayer(player: queuePlayer)
+        playerLayer.frame = bounds
+        playerLayer.contentsGravity = .resize
+        playerLayer.videoGravity = .resizeAspectFill
+        layer?.addSublayer(playerLayer)
     }
 
+    override func layout() {
+        super.layout()
+        playerLayer.frame = bounds
+    }
+
+    // MARK: - 播放控制
+
+    let queuePlayer = AVQueuePlayer()
+
+    private var looper: AVPlayerLooper?
+    private var url: URL?
+
     @objc func screensDidSleepNotification() {
-        self.queuePlayer.pause()
+        queuePlayer.pause()
     }
 
     @objc func screensDidWakeNotification() {
-        self.queuePlayer.play()
-    }
-
-    @objc func wallpaperDidChangeNotification() {
-        self.queuePlayer.pause()
-        self.url = nil
-        self.looper = nil
+        queuePlayer.play()
     }
 
     override func observeValue(
@@ -95,8 +76,8 @@ private class VideoSharePlayer: NSObject {
         change: [NSKeyValueChangeKey: Any]?,
         context: UnsafeMutableRawPointer?
     ) {
-        if self.queuePlayer.status == .readyToPlay {
-            self.queuePlayer.play()
+        if queuePlayer.status == .readyToPlay {
+            queuePlayer.play()
         }
     }
 
@@ -109,10 +90,9 @@ private class VideoSharePlayer: NSObject {
 
             self.url = url
 
-            self.looper = AVPlayerLooper(player: self.queuePlayer, templateItem: item)
-
-            if self.queuePlayer.status == .readyToPlay {
-                self.queuePlayer.play()
+            looper = AVPlayerLooper(player: queuePlayer, templateItem: item)
+            if queuePlayer.status == .readyToPlay {
+                queuePlayer.play()
             }
         }
     }

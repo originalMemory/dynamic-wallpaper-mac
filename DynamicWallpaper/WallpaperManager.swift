@@ -39,18 +39,6 @@ class WallpaperManager {
             }
         }
         CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
-
-        /// - 监听界面改变
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.activeSpaceDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            for monitor in self.monitors {
-                let window = monitor.window
-                window?.orderFront(nil)
-            }
-        }
     }
 
     private func refreshWallpaper() {

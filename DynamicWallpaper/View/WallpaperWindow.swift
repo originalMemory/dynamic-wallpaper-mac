@@ -25,10 +25,15 @@ class WallpaperWindow: NSWindow {
     }
 
     private func setup() {
-        level = .init(Int(CGWindowLevelForKey(CGWindowLevelKey.desktopWindow)) - 1)
+        level = .init(Int(CGWindowLevelForKey(CGWindowLevelKey.desktopWindow)))
         hasShadow = false
-        isReleasedWhenClosed = false
+//        isReleasedWhenClosed = false
+        isMovableByWindowBackground = false
         ignoresMouseEvents = true
+        collectionBehavior = [
+            .canJoinAllSpaces, // 出瑞在所有桌面
+            .stationary // 缩放不影响壁纸
+        ]
         contentView = VideoContentView()
     }
 
@@ -44,6 +49,6 @@ class WallpaperWindow: NSWindow {
 
     override func update() {
         super.update()
-        self.contentView?.frame = .init(x: 0, y: 0, width: self.frame.width, height: self.frame.height)
+        contentView?.frame = .init(x: 0, y: 0, width: self.frame.width, height: self.frame.height)
     }
 }
