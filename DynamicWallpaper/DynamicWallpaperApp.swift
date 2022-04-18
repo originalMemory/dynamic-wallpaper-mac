@@ -21,5 +21,6 @@ struct DynamicWallpaperApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         DBManager.share.setupTables()
+        WallpaperManager.share.setup()
     }
 }

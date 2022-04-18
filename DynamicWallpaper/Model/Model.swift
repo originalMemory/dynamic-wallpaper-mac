@@ -32,6 +32,14 @@ class Video: TableCodable {
 
     var isAutoIncrement: Bool = true // 用于定义是否使用自增的方式插入
     var lastInsertedRowID: Int64 = 0 // 用于获取自增插入后的主键值
+
+    func fullFilePath() -> String? {
+        VideoHelper.share.getFullPath(videoId: id, filename: file)
+    }
+
+    func fullPreviewPath() -> String? {
+        VideoHelper.share.getFullPath(videoId: id, filename: preview)
+    }
 }
 
 class Playlist: TableCodable {
@@ -55,18 +63,28 @@ class Playlist: TableCodable {
     var lastInsertedRowID: Int64 = 0 // 用于获取自增插入后的主键值
 }
 
+struct ScreenInfo {
+    let screenHash: Int
+    let name: String
+    let size: CGSize
+    let origin: CGPoint
+
+    static func from(screen: NSScreen) -> ScreenInfo {
+        ScreenInfo(
+            screenHash: screen.hash,
+            name: screen.localizedName,
+            size: screen.frame.size,
+            origin: screen.frame.origin
+        )
+    }
+}
+
 class Monitor {
     let screen: NSScreen
+    var videoUrl: String?
+    var window: WallpaperWindow?
 
     init(screen: NSScreen) {
         self.screen = screen
-    }
-
-    var size: CGSize {
-        screen.frame.size
-    }
-
-    var origin: CGPoint {
-        screen.frame.origin
     }
 }

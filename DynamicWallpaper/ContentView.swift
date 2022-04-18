@@ -31,38 +31,42 @@ struct ContentView: View {
                 ZStack(alignment: .leading) {
                     Color.gray
                     ZStack(alignment: .bottomLeading) {
-                        ForEach(0..<monitors.count, id: \.self) { i in
-                            let monitor = monitors[i]
+                        ForEach(0..<screenInfos.count, id: \.self) { i in
+                            let info: ScreenInfo = screenInfos[i]
                             ZStack(alignment: .topLeading) {
                                 Color.green
-                                Text(monitor.screen.localizedName).font(.system(size: 12)).padding(5)
+                                Text(info.name).font(.system(size: 12)).padding(5)
                             }
                             .overlay(
                                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                    .stroke(curMonitorIndex == i ? Color.blue : Color.white)
+                                    .stroke(curScreenIndex == i ? Color.blue : Color.white)
                             )
                             .padding(.all, 2)
                             .frame(
-                                width: monitor.size.width * monitorScale,
-                                height: monitor.size.height * monitorScale
+                                width: info.size.width * monitorScale,
+                                height: info.size.height * monitorScale
                             )
-                            .offset(x: monitor.origin.x * monitorScale, y: -monitor.origin.y * monitorScale)
+                            .offset(x: info.origin.x * monitorScale, y: -info.origin.y * monitorScale)
                             .onTapGesture {
-                                curMonitorIndex = i
+                                curScreenIndex = i
                             }
                         }
                     }.offset(x: 10, y: 0)
                 }
                 .frame(height: 180)
 
-                if curMonitorIndex >= 0 {
+                if curScreenIndex >= 0 {
                     Text("选中的显示器").padding(.top, 10)
                     VStack(alignment: .center, spacing: 10) {
-                        let monitor = monitors[curMonitorIndex]
-                        Text(monitor.screen.localizedName)
-                        Text("\(Int(monitor.size.width))*\(Int(monitor.size.height))")
-                        Button(monitorIsPlaying ? "取消播放" : "开始播放") {
-                            monitorIsPlaying = !monitorIsPlaying
+                        let info = screenInfos[curScreenIndex]
+                        Text(info.name)
+                        Text("\(Int(info.size.width))*\(Int(info.size.height))")
+                        Button("设置为该显示器的壁纸") {
+                            guard let path = videos[curVideoIndex].fullFilePath() else { return }
+                            WallpaperManager.share.setWallpaper(
+                                screenHash: info.screenHash,
+                                videoUrl: URL(fileURLWithPath: path)
+                            )
                         }
                     }.padding(10)
                         .frame(maxWidth: .infinity)
@@ -88,6 +92,9 @@ struct ContentView: View {
                 }
             }
             .frame(width: 200)
+            .onReceive(screenChangePub) { output in
+                refreshScreenInfos()
+            }
             Divider()
         }
         .frame(width: 1100, height: 850, alignment: .center)
@@ -95,28 +102,38 @@ struct ContentView: View {
 
     private var videos: [Video] = []
     @State private var vms: [VideoPreviewView.ViewModel]
-    @State private var monitors: [Monitor]
-    private var monitorScale: CGFloat = 0
+    @State private var screenInfos: [ScreenInfo]
+    @State private var monitorScale: CGFloat = 0
     @State private var curVideoIndex: Int = 0
 
-    @State private var curMonitorIndex: Int = 0
-    @State private var monitorIsPlaying: Bool = false
+    @State private var curScreenIndex: Int = 0
+    private let screenChangePub = NotificationCenter.default.publisher(for: ScreenDidChangeNotification)
 
     init() {
         let videos: [Video] = DBManager.share.queryFromDb(fromTable: Table.video) ?? []
         self.videos = videos
-        vms = videos.map { video in
+        _vms = State(initialValue: videos.map { video in
             VideoPreviewView.ViewModel.from(video: video)
-        }
-        monitors = NSScreen.screens.map {
-            Monitor(screen: $0)
-        }
+        })
         var totalWidth: CGFloat = 0
         for screen in NSScreen.screens {
             totalWidth = max(totalWidth, screen.frame.origin.x + screen.frame.size.width)
-            print(screen.frame)
+        }
+        _monitorScale = State(initialValue: 180 / totalWidth)
+        _screenInfos = State(initialValue: NSScreen.screens.map {
+            ScreenInfo.from(screen: $0)
+        })
+    }
+
+    private func refreshScreenInfos() {
+        var totalWidth: CGFloat = 0
+        for screen in NSScreen.screens {
+            totalWidth = max(totalWidth, screen.frame.origin.x + screen.frame.size.width)
         }
         monitorScale = 180 / totalWidth
+        screenInfos = NSScreen.screens.map {
+            ScreenInfo.from(screen: $0)
+        }
     }
 
     var videoView: some View {
