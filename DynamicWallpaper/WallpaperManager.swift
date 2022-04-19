@@ -52,12 +52,7 @@ class WallpaperManager {
             }
             return notExist
         }
-        NotificationCenter.default.post(
-            name: ScreenDidChangeNotification,
-            object: NSScreen.screens.map {
-                ScreenInfo.from(screen: $0)
-            }
-        )
+        NotificationCenter.default.post(name: ScreenDidChangeNotification, object: nil)
     }
 
     func setWallpaper(screenHash: Int, videoUrl: URL) {
