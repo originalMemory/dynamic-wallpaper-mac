@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var searchTitle: String = ""
     var body: some View {
         HStack(alignment: .top) {
             // 左侧功能栏
@@ -62,7 +61,7 @@ struct ContentView: View {
                         Text(info.name)
                         Text("\(Int(info.size.width))*\(Int(info.size.height))")
                         Button("设置为该显示器的壁纸") {
-                            guard let path = videos[curVideoIndex].fullFilePath() else { return }
+                            guard let path = vms[curVideoIndex].filePath else { return }
                             WallpaperManager.share.setWallpaper(
                                 screenHash: info.screenHash,
                                 videoUrl: URL(fileURLWithPath: path)
@@ -75,7 +74,7 @@ struct ContentView: View {
 
                 if curVideoIndex >= 0 {
                     Text("选中的壁纸")
-                    let video = videos[curVideoIndex]
+                    let video = vms[curVideoIndex]
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Spacer()
@@ -83,10 +82,19 @@ struct ContentView: View {
                             Spacer()
                         }
                         Divider()
-                        Text("描述：\n\(video.desc ?? "")")
+                        HStack {
+                            Spacer()
+                            Text("描述").bold()
+                            Spacer()
+                        }
+                        Text(video.desc ?? "")
                         Divider()
-                        Text("标签：\n\(video.tags ?? "")")
-                        Divider()
+                        HStack {
+                            Spacer()
+                            Text("标签").bold()
+                            Spacer()
+                        }
+                        Text(video.tags ?? "")
                     }.padding(10)
                         .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
                 }
@@ -100,7 +108,8 @@ struct ContentView: View {
         .frame(width: 1100, height: 850, alignment: .center)
     }
 
-    private var videos: [Video] = []
+    @State private var searchTitle: String = ""
+
     @State private var vms: [VideoPreviewView.ViewModel]
     @State private var screenInfos: [ScreenInfo]
     @State private var monitorScale: CGFloat = 0
@@ -111,7 +120,7 @@ struct ContentView: View {
 
     init() {
         let videos: [Video] = DBManager.share.queryFromDb(fromTable: Table.video) ?? []
-        self.videos = videos
+
         _vms = State(initialValue: videos.map { video in
             VideoPreviewView.ViewModel.from(video: video)
         })
@@ -142,18 +151,18 @@ struct ContentView: View {
                 Button("导入视频") {
                     selectImportVideoPaths()
                 }
-                TextField("输入搜索条件", text: $searchTitle).frame(width: 100)
+                TextField("输入搜索条件", text: $searchTitle).frame(width: 100).onSubmit { searchVideo() }
                 Button("搜索") {
-                    // TODO: 搜索
+                    searchVideo()
                 }
             }
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)) {
                     ForEach(0..<vms.count, id: \.self) { i in
                         VideoPreviewView(vm: $vms[i]).frame(height: 200).onTapGesture {
-                            vms[i] = vms[i].copy(isSelected: true)
+                            vms[i].isSelected = true
                             if curVideoIndex >= 0 {
-                                vms[curVideoIndex] = vms[curVideoIndex].copy(isSelected: false)
+                                vms[curVideoIndex].isSelected = false
                             }
                             curVideoIndex = i
                         }
@@ -163,6 +172,8 @@ struct ContentView: View {
         }
         .padding(.vertical, 10).frame(maxWidth: .infinity)
     }
+
+    // MARK: - 点击事件
 
     private func selectImportVideoPaths() {
         let dialog = NSOpenPanel()
@@ -202,6 +213,15 @@ struct ContentView: View {
     private func isVideo(url: URL) -> Bool {
         let videoExtensions = ["mkv", "mp4", "flv", "avi"]
         return videoExtensions.contains(url.pathExtension.lowercased())
+    }
+
+    private func searchVideo() {
+        curVideoIndex = -1
+        let videos: [Video] = DBManager.share.queryFromDb(
+            fromTable: Table.video,
+            where: Video.Properties.title.like("%\(searchTitle)%")
+        ) ?? []
+        vms = videos.map { VideoPreviewView.ViewModel.from(video: $0) }
     }
 }
 

@@ -32,14 +32,6 @@ class Video: TableCodable {
 
     var isAutoIncrement: Bool = true // 用于定义是否使用自增的方式插入
     var lastInsertedRowID: Int64 = 0 // 用于获取自增插入后的主键值
-
-    func fullFilePath() -> String? {
-        VideoHelper.share.getFullPath(videoId: id, filename: file)
-    }
-
-    func fullPreviewPath() -> String? {
-        VideoHelper.share.getFullPath(videoId: id, filename: preview)
-    }
 }
 
 class Playlist: TableCodable {

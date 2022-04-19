@@ -9,23 +9,43 @@ import SwiftUI
 
 /// 视频预览 view
 struct VideoPreviewView: View {
-    struct ViewModel {
-        let id: Int64?
+    class ViewModel {
+        let id: Int64
         let title: String
+        let filePath: String?
         let previewPath: String?
-        let isSelected: Bool
+        let desc: String?
+        let tags: String?
+        var isSelected: Bool
+
+        init(
+            id: Int64,
+            title: String,
+            filePath: String?,
+            previewPath: String?,
+            desc: String?,
+            tags: String?,
+            isSelected: Bool
+        ) {
+            self.id = id
+            self.title = title
+            self.filePath = filePath
+            self.previewPath = previewPath
+            self.desc = desc
+            self.tags = tags
+            self.isSelected = isSelected
+        }
 
         static func from(video: Video) -> ViewModel {
             VideoPreviewView.ViewModel(
                 id: video.id,
                 title: video.title,
+                filePath: VideoHelper.share.getFullPath(videoId: video.id, filename: video.file),
                 previewPath: VideoHelper.share.getFullPath(videoId: video.id, filename: video.preview),
+                desc: video.desc,
+                tags: video.tags,
                 isSelected: false
             )
-        }
-
-        func copy(isSelected: Bool) -> ViewModel {
-            VideoPreviewView.ViewModel(id: id, title: title, previewPath: previewPath, isSelected: isSelected)
         }
     }
 
@@ -86,7 +106,15 @@ struct VideoPreviewView: View {
 
 struct VideoPreviewView_Previews: PreviewProvider {
     static var previews: some View {
-        @State var model = VideoPreviewView.ViewModel(id: 0, title: "测试标题", previewPath: nil, isSelected: false)
+        @State var model = VideoPreviewView.ViewModel(
+            id: 0,
+            title: "测试标题",
+            filePath: nil,
+            previewPath: nil,
+            desc: "",
+            tags: "",
+            isSelected: false
+        )
         return VideoPreviewView(vm: $model).frame(width: 400, height: 300)
     }
 }
