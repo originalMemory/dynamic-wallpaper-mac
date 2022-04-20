@@ -14,13 +14,22 @@ struct ContentView: View {
             Divider()
             VStack(alignment: .leading) {
                 Spacer()
-                Button("所有视频") {}
-                Button("播放列表") {}
+                Button("所有视频") {
+                    middleShowType = .allVideo
+                }
+                Button("播放列表") {
+                    middleShowType = .playlist
+                }
                 Spacer()
             }
             .padding(.leading, Metric.horizontalMargin).frame(width: Metric.leftWidth)
             Divider()
-            videoView
+            switch middleShowType {
+            case .allVideo:
+                videoView
+            case .playlist:
+                playlistView
+            }
             Divider()
             screenAndDetailView.padding(.trailing, Metric.horizontalMargin)
         }
@@ -34,6 +43,8 @@ struct ContentView: View {
         static let leftWidth: CGFloat = 150
         static let horizontalMargin: CGFloat = 8
     }
+
+    @State private var middleShowType: MiddleShowType = .playlist
 
     @State private var searchTitle: String = ""
 
@@ -66,6 +77,11 @@ struct ContentView: View {
 
     // MARK: - View
 
+    enum MiddleShowType {
+        case allVideo
+        case playlist
+    }
+
     /// 视频预览 view
     var videoView: some View {
         VStack(alignment: .leading) {
@@ -95,6 +111,16 @@ struct ContentView: View {
             }
         }
         .padding(.vertical, 10).frame(maxWidth: .infinity)
+    }
+
+    var playlistView: some View {
+        VStack(alignment: .leading) {
+            Button("创建播放列表") {
+                TextInputWC { text in
+                    createPlaylist(name: text)
+                }.showWindow(nil)
+            }
+        }
     }
 
     /// 屏幕信息和详情 view
@@ -239,6 +265,12 @@ struct ContentView: View {
         vms = videos.map {
             VideoPreviewView.ViewModel.from(video: $0)
         }
+    }
+
+    private func createPlaylist(name: String) {
+        let playlist = Playlist()
+        playlist.name = name
+        DBManager.share.insertToDb(objects: [playlist], intoTable: Table.playlist)
     }
 }
 

@@ -33,6 +33,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(getMenuItem(title: "退出", type: .quit))
         statusMenuItem.menu = menu
+        showSettingWC()
     }
 
     private func getMenuItem(title: String, type: ItemType, key: String? = nil) -> NSMenuItem {
@@ -49,13 +50,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let type = ItemType(rawValue: item.tag) else { return }
         switch type {
         case .showSetting:
-            let hostVc = NSHostingController(rootView: ContentView())
-            let window = NSWindow(contentViewController: hostVc)
-            window.title = "设置"
-            let controller = NSWindowController(window: window)
-            controller.showWindow(nil)
+            showSettingWC()
         case .quit:
             NSApp.terminate(nil)
         }
+    }
+
+    private func showSettingWC() {
+        let hostVc = NSHostingController(rootView: ContentView())
+        let window = NSWindow(contentViewController: hostVc)
+        window.title = "设置"
+        let controller = NSWindowController(window: window)
+        controller.showWindow(nil)
     }
 }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0834787B280EB3440088B911 /* TextInputWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0834787A280EB3440088B911 /* TextInputWindowController.swift */; };
 		0838DD802806AF2C0078B296 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0838DD7F2806AF2C0078B296 /* AppDelegate.swift */; };
 		0838DD822806AF2C0078B296 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0838DD812806AF2C0078B296 /* ContentView.swift */; };
 		0838DD842806AF2F0078B296 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0838DD832806AF2F0078B296 /* Assets.xcassets */; };
@@ -47,6 +48,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0834787A280EB3440088B911 /* TextInputWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInputWindowController.swift; sourceTree = "<group>"; };
 		0838DD7C2806AF2C0078B296 /* DynamicWallpaper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DynamicWallpaper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0838DD7F2806AF2C0078B296 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		0838DD812806AF2C0078B296 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -179,6 +181,7 @@
 				089D2F61280D45F900C366D7 /* DropdownSelector.swift */,
 				37DC578C20C4143E0479B0A8 /* VideoContentView.swift */,
 				37DC5D43C2AB7B76F852E8B1 /* WallpaperWindow.swift */,
+				0834787A280EB3440088B911 /* TextInputWindowController.swift */,
 			);
 			path = View;
 			sourceTree = "<group>";
@@ -462,6 +465,7 @@
 				37DC5F62EE6E5DA6C40C004D /* VideoHelper.swift in Sources */,
 				089D2F62280D45F900C366D7 /* DropdownSelector.swift in Sources */,
 				37DC556AE8D2CD089DE213EF /* VideoContentView.swift in Sources */,
+				0834787B280EB3440088B911 /* TextInputWindowController.swift in Sources */,
 				37DC5B53622BFCFFB854CD1D /* WallpaperWindow.swift in Sources */,
 				37DC532097325EFF9EA4EE2D /* WallpaperManager.swift in Sources */,
 				37DC5861A82231EC3BA82DFE /* main.swift in Sources */,
