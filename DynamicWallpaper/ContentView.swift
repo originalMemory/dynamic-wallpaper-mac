@@ -47,8 +47,7 @@ struct ContentView: View {
     @State private var middleShowType: MiddleShowType = .playlist
 
     @State private var searchTitle: String = ""
-
-    @State private var vms: [VideoPreviewView.ViewModel]
+    @State private var videoVms: [VideoPreviewView.ViewModel]
     @State private var screenInfos: [ScreenInfo]
     @State private var monitorScale: CGFloat = 0
     @State private var curVideoIndex: Int = 0
@@ -58,7 +57,7 @@ struct ContentView: View {
 
     init() {
         let videos: [Video] = DBManager.share.queryFromDb(fromTable: Table.video) ?? []
-        _vms = State(initialValue: videos.map { video in
+        _videoVms = State(initialValue: videos.map { video in
             VideoPreviewView.ViewModel.from(video: video)
         })
         _screenInfos = State(initialValue: NSScreen.screens.map {
@@ -98,11 +97,11 @@ struct ContentView: View {
             }
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)) {
-                    ForEach(0..<vms.count, id: \.self) { i in
-                        VideoPreviewView(vm: $vms[i]).frame(height: 200).onTapGesture {
-                            vms[i].isSelected = true
+                    ForEach(0..<videoVms.count, id: \.self) { i in
+                        VideoPreviewView(vm: $videoVms[i]).frame(height: 200).onTapGesture {
+                            videoVms[i].isSelected = true
                             if curVideoIndex >= 0 {
-                                vms[curVideoIndex].isSelected = false
+                                videoVms[curVideoIndex].isSelected = false
                             }
                             curVideoIndex = i
                         }
@@ -119,6 +118,10 @@ struct ContentView: View {
                 TextInputWC { text in
                     createPlaylist(name: text)
                 }.showWindow(nil)
+            }
+            HStack {
+                Text("当前播放列表")
+                DropdownSelector()
             }
         }
     }
@@ -163,7 +166,7 @@ struct ContentView: View {
                     Text(info.name)
                     Text("\(Int(info.size.width))*\(Int(info.size.height))")
                     Button("设置为该显示器的壁纸") {
-                        guard let path = vms[curVideoIndex].filePath else {
+                        guard let path = videoVms[curVideoIndex].filePath else {
                             return
                         }
                         WallpaperManager.share.setWallpaper(
@@ -179,7 +182,7 @@ struct ContentView: View {
 
             if curVideoIndex >= 0 {
                 Text("选中的壁纸")
-                let video = vms[curVideoIndex]
+                let video = videoVms[curVideoIndex]
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Spacer()
@@ -262,7 +265,7 @@ struct ContentView: View {
             fromTable: Table.video,
             where: Video.Properties.title.like("%\(searchTitle)%")
         ) ?? []
-        vms = videos.map {
+        videoVms = videos.map {
             VideoPreviewView.ViewModel.from(video: $0)
         }
     }
