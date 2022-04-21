@@ -16,9 +16,14 @@ struct ContentView: View {
                 Spacer()
                 Button("所有视频") {
                     middleShowType = .allVideo
+                    searchVideo()
                 }
                 Button("播放列表") {
                     middleShowType = .playlist
+                    videoVms.removeAll()
+                    if let playlistId = (playlistVms.safeValue(index: curPlaylistIndex) ?? playlistVms.first)?.key {
+                        refreshPlaylistVideo(playlistId: playlistId)
+                    }
                 }
                 Spacer()
             }
@@ -26,7 +31,7 @@ struct ContentView: View {
             Divider()
             switch middleShowType {
             case .allVideo:
-                videoView
+                allVideoView
             case .playlist:
                 playlistView
             }
@@ -42,18 +47,21 @@ struct ContentView: View {
         static let rightWidth: CGFloat = 200
         static let leftWidth: CGFloat = 150
         static let horizontalMargin: CGFloat = 8
+        static let playlistHeaderHeight: CGFloat = 60
     }
 
-    @State private var middleShowType: MiddleShowType = .playlist
+    @State private var middleShowType: MiddleShowType = .allVideo
 
     @State private var searchTitle: String = ""
     @State private var videoVms: [VideoPreviewView.ViewModel]
     @State private var screenInfos: [ScreenInfo]
-    @State private var monitorScale: CGFloat = 0
-    @State private var curVideoIndex: Int = 0
+
+    @State private var playlistVms: [DropdownOption]
+    @State private var curPlaylistIndex: Int = -1
 
     @State private var curScreenIndex: Int = 0
-    private let screenChangePub = NotificationCenter.default.publisher(for: ScreenDidChangeNotification)
+    @State private var monitorScale: CGFloat = 0
+    @State private var selectedVideos: [Video] = []
 
     init() {
         let videos: [Video] = DBManager.share.queryFromDb(fromTable: Table.video) ?? []
@@ -63,6 +71,12 @@ struct ContentView: View {
         _screenInfos = State(initialValue: NSScreen.screens.map {
             ScreenInfo.from(screen: $0)
         })
+
+        let playlists: [Playlist] = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
+        _playlistVms = State(initialValue: playlists.map { playlist in
+            DropdownOption(key: String(playlist.id), value: playlist.name)
+        })
+
         _monitorScale = State(initialValue: getMonitorScale())
     }
 
@@ -81,8 +95,14 @@ struct ContentView: View {
         case playlist
     }
 
+    var videoPreviewView: some View {
+        VideoPreviewGrid(vms: $videoVms) { ids in
+            refreshDetailVideos(ids: ids)
+        }
+    }
+
     /// 视频预览 view
-    var videoView: some View {
+    var allVideoView: some View {
         VStack(alignment: .leading) {
             HStack(alignment: .center) {
                 Button("导入视频") {
@@ -95,34 +115,54 @@ struct ContentView: View {
                     searchVideo()
                 }
             }
-            ScrollView {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)) {
-                    ForEach(0..<videoVms.count, id: \.self) { i in
-                        VideoPreviewView(vm: $videoVms[i]).frame(height: 200).onTapGesture {
-                            videoVms[i].isSelected = true
-                            if curVideoIndex >= 0 {
-                                videoVms[curVideoIndex].isSelected = false
-                            }
-                            curVideoIndex = i
-                        }
-                    }
-                }
-            }
+            .padding(.top, 10)
+            Divider()
+            videoPreviewView
         }
-        .padding(.vertical, 10).frame(maxWidth: .infinity)
     }
 
     var playlistView: some View {
-        VStack(alignment: .leading) {
-            Button("创建播放列表") {
-                TextInputWC { text in
-                    createPlaylist(name: text)
-                }.showWindow(nil)
+        ZStack(alignment: .topLeading) {
+            VStack {
+                Divider()
+                videoPreviewView
             }
+            .padding(.top, Metric.playlistHeaderHeight)
             HStack {
                 Text("当前播放列表")
-                DropdownSelector()
+                DropdownSelector(
+                    placeholder: "未选择播放列表",
+                    options: playlistVms,
+                    selectIndex: curPlaylistIndex,
+                    popAlignment: .topLeading,
+                    buttonHeight: 30
+                ) { option in
+                    refreshPlaylistVideo(playlistId: option.key)
+                }
+                .frame(width: 200)
+                Button("创建") {
+                    TextInputWC { text in
+                        createPlaylist(name: text)
+                    }
+                    .showWindow(nil)
+                }
+                Button("修改") {
+                    TextInputWC(text: playlistVms[curPlaylistIndex].value) { text in
+                        guard let id = Int64(playlistVms[curPlaylistIndex].key) else {
+                            return
+                        }
+                        updatePlaylistName(id: id, name: text)
+                    }
+                    .showWindow(nil)
+                }
+                .disabled(curPlaylistIndex < 0)
+                Button("删除") {
+                    delPlaylist()
+                }
+                .disabled(curPlaylistIndex < 0)
+                Spacer()
             }
+            .frame(height: Metric.playlistHeaderHeight)
         }
     }
 
@@ -166,7 +206,9 @@ struct ContentView: View {
                     Text(info.name)
                     Text("\(Int(info.size.width))*\(Int(info.size.height))")
                     Button("设置为该显示器的壁纸") {
-                        guard let path = videoVms[curVideoIndex].filePath else {
+                        guard let video = selectedVideos.first,
+                              let path = VideoHelper.share.getFullPath(videoId: video.id, filename: video.file)
+                        else {
                             return
                         }
                         WallpaperManager.share.setWallpaper(
@@ -180,41 +222,82 @@ struct ContentView: View {
                 .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
             }
 
-            if curVideoIndex >= 0 {
+            if !selectedVideos.isEmpty {
                 Text("选中的壁纸")
-                let video = videoVms[curVideoIndex]
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Spacer()
-                        Text(video.title)
-                        Spacer()
+                ScrollView {
+                    if selectedVideos.count > 1 {
+                        ForEach(0..<selectedVideos.count, id: \.self) { i in
+                            Text(selectedVideos[i].title).padding(.bottom, 2).frame(maxWidth: .infinity)
+                        }
+                    } else {
+                        let video = selectedVideos[0]
+                        HStack {
+                            Spacer()
+                            Text(video.title)
+                            Spacer()
+                        }
+                        Divider()
+                        HStack {
+                            Spacer()
+                            Text("描述").bold()
+                            Spacer()
+                        }
+                        Text(video.desc ?? "").frame(maxWidth: .infinity, alignment: .leading)
+                        Divider()
+                        HStack {
+                            Spacer()
+                            Text("标签").bold()
+                            Spacer()
+                        }
+                        Text(video.tags ?? "").frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    Divider()
-                    HStack {
-                        Spacer()
-                        Text("描述").bold()
-                        Spacer()
-                    }
-                    Text(video.desc ?? "")
-                    Divider()
-                    HStack {
-                        Spacer()
-                        Text("标签").bold()
-                        Spacer()
-                    }
-                    Text(video.tags ?? "")
                 }
                 .padding(10)
                 .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
             }
+
+            Spacer()
+            Text("播放列表")
+            VStack {
+                if middleShowType == .allVideo {
+                    DropdownSelector(
+                        placeholder: "未选择播放列表",
+                        options: playlistVms,
+                        selectIndex: curPlaylistIndex,
+                        popAlignment: .bottomLeading,
+                        buttonHeight: 30
+                    ) { option in
+                        // TODO: 优化按钮状态
+                        curPlaylistIndex = playlistVms.firstIndex(where: { $0 == option }) ?? -1
+                    }
+                }
+                HStack {
+                    Button("添加") {
+                        addOrDelVideoToPlaylist(isAdd: true)
+                    }
+                    Button("删除") {
+                        addOrDelVideoToPlaylist(isAdd: false)
+                    }
+                }
+                .disabled(curPlaylistIndex < 0)
+            }
+            .frame(maxWidth: .infinity)
+            .padding().overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
         }
         .frame(width: 200)
-        .onReceive(screenChangePub) { output in
+        .onReceive(NotificationCenter.default.publisher(for: ScreenDidChangeNotification)) { output in
             monitorScale = getMonitorScale()
             screenInfos = NSScreen.screens.map {
                 ScreenInfo.from(screen: $0)
             }
         }
+    }
+
+    private func refreshDetailVideos(ids: [Int64]) {
+        selectedVideos = DBManager.share.queryFromDb(
+            fromTable: Table.video,
+            where: Video.Properties.id.in(ids)
+        ) ?? []
     }
 
     // MARK: - 点击事件
@@ -260,7 +343,7 @@ struct ContentView: View {
     }
 
     private func searchVideo() {
-        curVideoIndex = -1
+        selectedVideos = []
         let videos: [Video] = DBManager.share.queryFromDb(
             fromTable: Table.video,
             where: Video.Properties.title.like("%\(searchTitle)%")
@@ -270,10 +353,101 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - 播放列表修改及展示
+
     private func createPlaylist(name: String) {
         let playlist = Playlist()
         playlist.name = name
         DBManager.share.insertToDb(objects: [playlist], intoTable: Table.playlist)
+        guard let playlists: [Playlist] = DBManager.share.queryFromDb(fromTable: Table.playlist) else {
+            return
+        }
+        playlistVms = playlists.map { playlist in
+            DropdownOption(key: "\(playlist.id)", value: playlist.name)
+        }
+        selectedVideos.removeAll()
+    }
+
+    private func updatePlaylistName(id: Int64, name: String) {
+        let playlist = Playlist()
+        playlist.name = name
+        DBManager.share.updateToDb(
+            table: Table.playlist,
+            on: [Playlist.Properties.name],
+            with: playlist,
+            where: Playlist.Properties.id.is(id)
+        )
+        let key = String(id)
+        guard let index = playlistVms.firstIndex(where: { option in option.key == key }) else {
+            return
+        }
+        playlistVms[index] = DropdownOption(key: key, value: name)
+    }
+
+    private func delPlaylist() {
+        guard curPlaylistIndex >= 0, let id = Int64(playlistVms[curPlaylistIndex].key) else {
+            return
+        }
+        DBManager.share.deleteFromDb(fromTable: Table.playlist, where: Playlist.Properties.id.is(id))
+        playlistVms.remove(at: curPlaylistIndex)
+        if curPlaylistIndex >= playlistVms.count {
+            curPlaylistIndex -= 1
+        }
+        selectedVideos.removeAll()
+    }
+
+    private func refreshPlaylistVideo(playlistId: String) {
+        curPlaylistIndex = playlistVms.firstIndex {
+            $0.key == playlistId
+        } ?? -1
+        guard let id = Int64(playlistId),
+              let playlists: [Playlist] = DBManager.share.queryFromDb(
+                  fromTable: Table.playlist,
+                  where: Playlist.Properties.id.is(id),
+                  limit: 1
+              ),
+              let videoIds = playlists.first?.videoIds,
+              let videos: [Video] = DBManager.share.queryFromDb(
+                  fromTable: Table.video,
+                  where: Video.Properties.id.in(videoIds.components(separatedBy: ","))
+              )
+        else {
+            return
+        }
+        videoVms = videos.map { VideoPreviewView.ViewModel.from(video: $0) }
+    }
+
+    // MARK: - 播放列表包含的视频增删
+
+    private func addOrDelVideoToPlaylist(isAdd: Bool) {
+        guard let id = Int64(playlistVms.safeValue(index: curPlaylistIndex)?.key ?? ""),
+              let playlists: [Playlist] = DBManager.share.queryFromDb(
+                  fromTable: Table.playlist,
+                  where: Playlist.Properties.id.is(id),
+                  limit: 1
+              ),
+              let playlist = playlists.first
+        else {
+            return
+        }
+        var videoIds = Set(playlist.videoIds.components(separatedBy: ","))
+        videoIds.remove("")
+        let selectedVideoIds = selectedVideos.map { String($0.id) }
+        for id in selectedVideoIds {
+            if isAdd {
+                videoIds.insert(id)
+            } else {
+                videoIds.remove(id)
+            }
+        }
+        playlist.videoIds = Array(videoIds).joined(separator: ",")
+        DBManager.share.updateToDb(
+            table: Table.playlist,
+            on: [Playlist.Properties.videoIds],
+            with: playlist,
+            where: Playlist.Properties.id.is(id)
+        )
+        refreshPlaylistVideo(playlistId: String(playlist.id))
     }
 }
 

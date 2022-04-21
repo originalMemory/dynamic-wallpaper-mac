@@ -41,3 +41,10 @@ extension Color {
         )
     }
 }
+
+extension Array {
+    func safeValue(index: Int?) -> Element? {
+        guard let index = index, index >= 0, index < count else { return nil }
+        return self[index]
+    }
+}

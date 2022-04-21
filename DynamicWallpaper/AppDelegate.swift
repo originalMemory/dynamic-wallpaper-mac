@@ -57,8 +57,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showSettingWC() {
-        let hostVc = NSHostingController(rootView: ContentView())
-        let window = NSWindow(contentViewController: hostVc)
+//        let hostVc = NSHostingController(rootView: ContentView())
+//        let window = NSWindow(contentViewController: hostVc, styleMask: [])
+        let hostView = NSHostingView(rootView: ContentView())
+        let window = NSWindow(
+            contentRect: .zero,
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false,
+            screen: NSScreen.screens[1]
+        )
+        window.contentView = hostView
         window.title = "设置"
         let controller = NSWindowController(window: window)
         controller.showWindow(nil)
