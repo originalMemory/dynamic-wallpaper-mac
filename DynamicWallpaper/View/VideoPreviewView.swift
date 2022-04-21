@@ -12,13 +12,14 @@ struct VideoPreviewView: View {
     struct ViewModel: Hashable {
         let id: Int64
         let title: String
-        let previewPath: String?
+        let previewImage: NSImage?
 
         static func from(video: Video) -> ViewModel {
-            VideoPreviewView.ViewModel(
+            let path = VideoHelper.share.getFullPath(videoId: video.id, filename: video.preview)
+            return VideoPreviewView.ViewModel(
                 id: video.id,
                 title: video.title,
-                previewPath: VideoHelper.share.getFullPath(videoId: video.id, filename: video.preview)
+                previewImage: path != nil ? NSImage(contentsOfFile: path!) : nil
             )
         }
 
@@ -36,28 +37,11 @@ struct VideoPreviewView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             GeometryReader { geometryProxy in
-                if let previewPath = vm.previewPath {
-                    AsyncImage(url: URL(fileURLWithPath: previewPath)) { phase in
-                        switch phase {
-                        case .empty:
-                            // TODO: loading image
-                            Image("defaultPreview").resizable().scaledToFill().frame(
-                                width: geometryProxy.size.width,
-                                height: geometryProxy.size.height
-                            ).clipped()
-                        case let .success(image):
-                            image.resizable().scaledToFill().frame(
-                                width: geometryProxy.size.width,
-                                height: geometryProxy.size.height
-                            ).clipShape(corner)
-                        case .failure:
-                            Image(systemName: "exclamationmark.icloud")
-                                .resizable()
-                                .scaledToFit()
-                        @unknown default:
-                            Image(systemName: "exclamationmark.icloud")
-                        }
-                    }
+                if let previewImage = vm.previewImage {
+                    Image(nsImage: previewImage).resizable().scaledToFill().frame(
+                        width: geometryProxy.size.width,
+                        height: geometryProxy.size.height
+                    ).clipShape(corner)
                 } else {
                     Image("defaultPreview").resizable().scaledToFill().frame(
                         width: geometryProxy.size.width,
@@ -88,7 +72,7 @@ struct VideoPreviewView_Previews: PreviewProvider {
         let model = VideoPreviewView.ViewModel(
             id: 0,
             title: "测试标题2",
-            previewPath: nil
+            previewImage: nil
         )
         return VideoPreviewView(vm: model, isSelected: false).frame(width: 400, height: 300)
     }

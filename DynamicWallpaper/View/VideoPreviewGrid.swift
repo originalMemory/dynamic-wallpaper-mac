@@ -48,16 +48,16 @@ struct VideoPreviewGrid: View {
 struct VideoPreviewGrid_Previews: PreviewProvider {
     static var previews: some View {
         let vms: [VideoPreviewView.ViewModel] = [
-            VideoPreviewView.ViewModel(id: 1, title: "1", previewPath: nil),
-            VideoPreviewView.ViewModel(id: 2, title: "2", previewPath: nil),
-            VideoPreviewView.ViewModel(id: 3, title: "3", previewPath: nil),
-            VideoPreviewView.ViewModel(id: 4, title: "4", previewPath: nil),
-            VideoPreviewView.ViewModel(id: 5, title: "5", previewPath: nil),
-            VideoPreviewView.ViewModel(id: 6, title: "6", previewPath: nil),
-            VideoPreviewView.ViewModel(id: 7, title: "7", previewPath: nil),
-            VideoPreviewView.ViewModel(id: 8, title: "8", previewPath: nil),
-            VideoPreviewView.ViewModel(id: 9, title: "9", previewPath: nil),
-            VideoPreviewView.ViewModel(id: 10, title: "10", previewPath: nil)
+            VideoPreviewView.ViewModel(id: 1, title: "1", previewImage: nil),
+            VideoPreviewView.ViewModel(id: 2, title: "2", previewImage: nil),
+            VideoPreviewView.ViewModel(id: 3, title: "3", previewImage: nil),
+            VideoPreviewView.ViewModel(id: 4, title: "4", previewImage: nil),
+            VideoPreviewView.ViewModel(id: 5, title: "5", previewImage: nil),
+            VideoPreviewView.ViewModel(id: 6, title: "6", previewImage: nil),
+            VideoPreviewView.ViewModel(id: 7, title: "7", previewImage: nil),
+            VideoPreviewView.ViewModel(id: 8, title: "8", previewImage: nil),
+            VideoPreviewView.ViewModel(id: 9, title: "9", previewImage: nil),
+            VideoPreviewView.ViewModel(id: 10, title: "10", previewImage: nil)
         ]
         VideoPreviewGrid(vms: .constant(vms)) { ids in
             print(ids)
