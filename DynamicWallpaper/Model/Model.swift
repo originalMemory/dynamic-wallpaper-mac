@@ -53,6 +53,10 @@ class Playlist: TableCodable {
 
     var isAutoIncrement: Bool = true // 用于定义是否使用自增的方式插入
     var lastInsertedRowID: Int64 = 0 // 用于获取自增插入后的主键值
+
+    func videoIdList() -> [Int64] {
+        videoIds.components(separatedBy: ",").compactMap { Int64($0) }
+    }
 }
 
 struct ScreenInfo {

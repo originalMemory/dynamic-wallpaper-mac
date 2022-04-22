@@ -7,57 +7,38 @@
 
 import SwiftUI
 
-struct ContentView: View {
-    var body: some View {
-        HStack(alignment: .top) {
-            // 左侧功能栏
-            Divider()
-            VStack(alignment: .leading) {
-                Spacer()
-                Button("所有视频") {
-                    middleShowType = .allVideo
-                    searchVideo()
-                }
-                Button("播放列表") {
-                    middleShowType = .playlist
-                    videoVms.removeAll()
-                    if let playlistId = (playlistVms.safeValue(index: curPlaylistIndex) ?? playlistVms.first)?.key {
-                        refreshPlaylistVideo(playlistId: playlistId)
-                    }
-                }
-                Spacer()
-            }
-            .padding(.leading, Metric.horizontalMargin).frame(width: Metric.leftWidth)
-            Divider()
-            switch middleShowType {
-            case .allVideo:
-                allVideoView
-            case .playlist:
-                playlistView
-            }
-            Divider()
-            screenAndDetailView.padding(.trailing, Metric.horizontalMargin)
-        }
-        .frame(width: 1100, height: 850, alignment: .center)
-    }
+enum MiddleShowType: CaseIterable {
+    case allVideo
+    case playlist
+}
 
+extension MiddleShowType {
+    func text() -> String {
+        switch self {
+        case .allVideo:
+            return "所有视频"
+        case .playlist:
+            return "播放列表"
+        }
+    }
+}
+
+struct ContentView: View {
     // MARK: - 属性及初始化
 
     enum Metric {
-        static let rightWidth: CGFloat = 200
-        static let leftWidth: CGFloat = 150
+        static let rightWidth: CGFloat = 250
         static let horizontalMargin: CGFloat = 8
-        static let playlistHeaderHeight: CGFloat = 60
     }
 
-    @State private var middleShowType: MiddleShowType = .allVideo
+    @State private var showModeIndex = 0
 
     @State private var searchTitle: String = ""
     @State private var videoVms: [VideoPreviewView.ViewModel]
     @State private var screenInfos: [ScreenInfo]
 
-    @State private var playlistVms: [DropdownOption]
-    @State private var curPlaylistIndex: Int = -1
+    @State private var playlists: [Playlist]
+    @State private var curPlaylistIndex: Int = 0
 
     @State private var curScreenIndex: Int = 0
     @State private var monitorScale: CGFloat = 0
@@ -65,17 +46,14 @@ struct ContentView: View {
 
     init() {
         let videos: [Video] = DBManager.share.queryFromDb(fromTable: Table.video) ?? []
-        _videoVms = State(initialValue: videos.map { video in
+        videoVms = videos.map { video in
             VideoPreviewView.ViewModel.from(video: video)
-        })
-        _screenInfos = State(initialValue: NSScreen.screens.map {
+        }
+        screenInfos = NSScreen.screens.map {
             ScreenInfo.from(screen: $0)
-        })
+        }
 
-        let playlists: [Playlist] = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
-        _playlistVms = State(initialValue: playlists.map { playlist in
-            DropdownOption(key: String(playlist.id), value: playlist.name)
-        })
+        playlists = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
 
         _monitorScale = State(initialValue: getMonitorScale())
     }
@@ -85,84 +63,90 @@ struct ContentView: View {
         for screen in NSScreen.screens {
             totalWidth = max(totalWidth, screen.frame.origin.x + screen.frame.size.width)
         }
-        return Metric.rightWidth * 0.9 / totalWidth
+        return Metric.rightWidth * 0.7 / totalWidth
+    }
+
+    private func curShowMode() -> MiddleShowType {
+        MiddleShowType.allCases[showModeIndex]
     }
 
     // MARK: - View
 
-    enum MiddleShowType {
-        case allVideo
-        case playlist
-    }
-
-    var videoPreviewView: some View {
-        VideoPreviewGrid(vms: $videoVms) { ids in
-            refreshDetailVideos(ids: ids)
-        }
-    }
-
-    /// 视频预览 view
-    var allVideoView: some View {
-        VStack(alignment: .leading) {
-            HStack(alignment: .center) {
-                Button("导入视频") {
-                    selectImportVideoPaths()
-                }
-                TextField("输入搜索条件", text: $searchTitle).frame(width: 100).onSubmit {
-                    searchVideo()
-                }
-                Button("搜索") {
-                    searchVideo()
-                }
-            }
-            .padding(.top, 10)
-            Divider()
-            videoPreviewView
-        }
-    }
-
-    var playlistView: some View {
-        ZStack(alignment: .topLeading) {
+    var body: some View {
+        HStack(alignment: .top) {
             VStack {
-                Divider()
-                videoPreviewView
-            }
-            .padding(.top, Metric.playlistHeaderHeight)
-            HStack {
-                Text("当前播放列表")
-                DropdownSelector(
-                    placeholder: "未选择播放列表",
-                    options: playlistVms,
-                    selectIndex: curPlaylistIndex,
-                    popAlignment: .topLeading,
-                    buttonHeight: 30
-                ) { option in
-                    refreshPlaylistVideo(playlistId: option.key)
-                }
-                .frame(width: 200)
-                Button("创建") {
-                    TextInputWC { text in
-                        createPlaylist(name: text)
+                Picker("", selection: $showModeIndex) {
+                    ForEach(0..<MiddleShowType.allCases.count, id: \.self) { i in
+                        Text(MiddleShowType.allCases[i].text())
                     }
-                    .showWindow(nil)
-                }
-                Button("修改") {
-                    TextInputWC(text: playlistVms[curPlaylistIndex].value) { text in
-                        guard let id = Int64(playlistVms[curPlaylistIndex].key) else {
-                            return
+                }.labelsHidden()
+                    .pickerStyle(SegmentedPickerStyle())
+                    .onChange(of: showModeIndex) { index in
+                        print("showMode: \(showModeIndex)")
+                        switch MiddleShowType.allCases[index] {
+                        case .allVideo:
+                            searchVideo()
+                        case .playlist:
+                            videoVms.removeAll()
+                            refreshPlaylistVideo()
                         }
-                        updatePlaylistName(id: id, name: text)
+                    }.padding(.top, 10).frame(width: 250)
+                Divider().padding(.horizontal, Metric.horizontalMargin)
+                switch MiddleShowType.allCases[showModeIndex] {
+                case .allVideo:
+                    HStack {
+                        Button("导入视频") {
+                            selectImportVideoPaths()
+                        }
+                        TextField("输入搜索条件", text: $searchTitle).frame(width: 100).onSubmit {
+                            searchVideo()
+                        }
+                        Button("搜索") {
+                            searchVideo()
+                        }
+                        Spacer()
+                    }.padding(.leading, Metric.horizontalMargin)
+                case .playlist:
+                    HStack {
+                        playlistPicker.padding(.leading, Metric.horizontalMargin).frame(width: 150)
+                        Button("创建") {
+                            TextInputWC { text in
+                                createPlaylist(name: text)
+                            }
+                            .showWindow(nil)
+                        }
+                        Button("修改") {
+                            TextInputWC(text: playlists[curPlaylistIndex].name) { text in
+                                updatePlaylistName(id: playlists[curPlaylistIndex].id, name: text)
+                            }
+                            .showWindow(nil)
+                        }
+                        .disabled(curPlaylistIndex < 0)
+                        Button("删除") {
+                            delPlaylist()
+                        }
+                        .disabled(curPlaylistIndex < 0)
+                        Spacer()
                     }
-                    .showWindow(nil)
                 }
-                .disabled(curPlaylistIndex < 0)
-                Button("删除") {
-                    delPlaylist()
+                Divider().padding(.horizontal, Metric.horizontalMargin)
+                VideoPreviewGrid(vms: $videoVms) { ids in
+                    refreshDetailVideos(ids: ids)
                 }
-                .disabled(curPlaylistIndex < 0)
-                Spacer()
             }
-            .frame(height: Metric.playlistHeaderHeight)
+            Divider()
+            screenAndDetailView.padding(.trailing, Metric.horizontalMargin)
+        }
+        .frame(width: 1100, height: 850, alignment: .center)
+    }
+
+    var playlistPicker: some View {
+        Picker("", selection: $curPlaylistIndex) {
+            ForEach(0..<playlists.count, id: \.self) { i in
+                Text(playlists[i].name)
+            }
+        }.labelsHidden().onChange(of: curPlaylistIndex) { index in
+            refreshPlaylistVideo()
         }
     }
 
@@ -197,7 +181,7 @@ struct ContentView: View {
                 }
                 .offset(x: 10, y: 0)
             }
-            .frame(height: Metric.rightWidth * 0.9)
+            .frame(height: Metric.rightWidth * 0.7)
 
             if curScreenIndex >= 0 {
                 Text("选中的显示器").padding(.top, 10)
@@ -259,17 +243,8 @@ struct ContentView: View {
             Spacer()
             Text("播放列表")
             VStack {
-                if middleShowType == .allVideo {
-                    DropdownSelector(
-                        placeholder: "未选择播放列表",
-                        options: playlistVms,
-                        selectIndex: curPlaylistIndex,
-                        popAlignment: .bottomLeading,
-                        buttonHeight: 30
-                    ) { option in
-                        // TODO: 优化按钮状态
-                        curPlaylistIndex = playlistVms.firstIndex(where: { $0 == option }) ?? -1
-                    }
+                if curShowMode() == .allVideo {
+                    playlistPicker
                 }
                 HStack {
                     Button("添加") {
@@ -294,10 +269,11 @@ struct ContentView: View {
     }
 
     private func refreshDetailVideos(ids: [Int64]) {
-        selectedVideos = DBManager.share.queryFromDb(
+        let videos: [Video] = DBManager.share.queryFromDb(
             fromTable: Table.video,
             where: Video.Properties.id.in(ids)
         ) ?? []
+        selectedVideos = videos
     }
 
     // MARK: - 点击事件
@@ -343,7 +319,6 @@ struct ContentView: View {
     }
 
     private func searchVideo() {
-        selectedVideos = []
         let videos: [Video] = DBManager.share.queryFromDb(
             fromTable: Table.video,
             where: Video.Properties.title.like("%\(searchTitle)%")
@@ -359,12 +334,7 @@ struct ContentView: View {
         let playlist = Playlist()
         playlist.name = name
         DBManager.share.insertToDb(objects: [playlist], intoTable: Table.playlist)
-        guard let playlists: [Playlist] = DBManager.share.queryFromDb(fromTable: Table.playlist) else {
-            return
-        }
-        playlistVms = playlists.map { playlist in
-            DropdownOption(key: "\(playlist.id)", value: playlist.name)
-        }
+        playlists = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
         selectedVideos.removeAll()
     }
 
@@ -377,41 +347,26 @@ struct ContentView: View {
             with: playlist,
             where: Playlist.Properties.id.is(id)
         )
-        let key = String(id)
-        guard let index = playlistVms.firstIndex(where: { option in option.key == key }) else {
-            return
-        }
-        playlistVms[index] = DropdownOption(key: key, value: name)
+        playlists = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
     }
 
     private func delPlaylist() {
-        guard curPlaylistIndex >= 0, let id = Int64(playlistVms[curPlaylistIndex].key) else {
-            return
-        }
-        DBManager.share.deleteFromDb(fromTable: Table.playlist, where: Playlist.Properties.id.is(id))
-        playlistVms.remove(at: curPlaylistIndex)
-        if curPlaylistIndex >= playlistVms.count {
+        DBManager.share.deleteFromDb(
+            fromTable: Table.playlist,
+            where: Playlist.Properties.id.is(playlists[curPlaylistIndex].id)
+        )
+        playlists.remove(at: curPlaylistIndex)
+        if curPlaylistIndex >= playlists.count {
             curPlaylistIndex -= 1
         }
         selectedVideos.removeAll()
     }
 
-    private func refreshPlaylistVideo(playlistId: String) {
-        curPlaylistIndex = playlistVms.firstIndex {
-            $0.key == playlistId
-        } ?? -1
-        guard let id = Int64(playlistId),
-              let playlists: [Playlist] = DBManager.share.queryFromDb(
-                  fromTable: Table.playlist,
-                  where: Playlist.Properties.id.is(id),
-                  limit: 1
-              ),
-              let videoIds = playlists.first?.videoIds,
-              let videos: [Video] = DBManager.share.queryFromDb(
-                  fromTable: Table.video,
-                  where: Video.Properties.id.in(videoIds.components(separatedBy: ","))
-              )
-        else {
+    private func refreshPlaylistVideo() {
+        guard let videos: [Video] = DBManager.share.queryFromDb(
+            fromTable: Table.video,
+            where: Video.Properties.id.in(playlists[curPlaylistIndex].videoIdList())
+        ) else {
             return
         }
         videoVms = videos.map { VideoPreviewView.ViewModel.from(video: $0) }
@@ -420,34 +375,18 @@ struct ContentView: View {
     // MARK: - 播放列表包含的视频增删
 
     private func addOrDelVideoToPlaylist(isAdd: Bool) {
-        guard let id = Int64(playlistVms.safeValue(index: curPlaylistIndex)?.key ?? ""),
-              let playlists: [Playlist] = DBManager.share.queryFromDb(
-                  fromTable: Table.playlist,
-                  where: Playlist.Properties.id.is(id),
-                  limit: 1
-              ),
-              let playlist = playlists.first
-        else {
-            return
-        }
-        var videoIds = Set(playlist.videoIds.components(separatedBy: ","))
-        videoIds.remove("")
-        let selectedVideoIds = selectedVideos.map { String($0.id) }
-        for id in selectedVideoIds {
-            if isAdd {
-                videoIds.insert(id)
-            } else {
-                videoIds.remove(id)
-            }
-        }
-        playlist.videoIds = Array(videoIds).joined(separator: ",")
+        let playlist = playlists[curPlaylistIndex]
+        let videoIds = Set(playlist.videoIdList() + selectedVideos.map { $0.id }).map { String($0) }
+        playlist.videoIds = videoIds.joined(separator: ",")
         DBManager.share.updateToDb(
             table: Table.playlist,
             on: [Playlist.Properties.videoIds],
             with: playlist,
-            where: Playlist.Properties.id.is(id)
+            where: Playlist.Properties.id.is(playlist.id)
         )
-        refreshPlaylistVideo(playlistId: String(playlist.id))
+        if curShowMode() == .playlist {
+            refreshPlaylistVideo()
+        }
     }
 }
 

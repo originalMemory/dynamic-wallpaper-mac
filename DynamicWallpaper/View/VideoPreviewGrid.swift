@@ -17,13 +17,13 @@ struct VideoPreviewGrid: View {
     @State var enableMulti: Bool = false
 
     var body: some View {
-        ScrollView {
-            VStack {
-                HStack {
-                    Spacer()
-                    Toggle("允许多选", isOn: $enableMulti).toggleStyle(SwitchToggleStyle(tint: .green))
-                }.padding(EdgeInsets(top: padding, leading: padding, bottom: 0, trailing: padding))
-
+        VStack {
+            HStack {
+                Spacer()
+                Toggle("允许多选", isOn: $enableMulti).toggleStyle(SwitchToggleStyle(tint: .green))
+            }
+            .padding(EdgeInsets(top: padding, leading: padding, bottom: 0, trailing: padding))
+            ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: padding), count: 3)) {
                     ForEach(vms, id: \.self) { vm in
                         VideoPreviewView(vm: vm, isSelected: selectedIds.contains(vm.id)).frame(height: 200)
@@ -32,14 +32,21 @@ struct VideoPreviewGrid: View {
                                     selectedIds.removeAll()
                                 }
                                 if selectedIds.contains(vm.id) {
-                                    selectedIds.removeAll { $0 == vm.id }
+                                    selectedIds.removeAll {
+                                        $0 == vm.id
+                                    }
                                 } else {
                                     selectedIds.append(vm.id)
                                 }
                                 onClick(selectedIds)
                             }
                     }
-                }.padding(padding)
+                }
+                .padding(padding)
+            }
+            .onChange(of: vms) { _ in
+                selectedIds.removeAll()
+                onClick(selectedIds)
             }
         }
     }
@@ -61,6 +68,7 @@ struct VideoPreviewGrid_Previews: PreviewProvider {
         ]
         VideoPreviewGrid(vms: .constant(vms)) { ids in
             print(ids)
-        }.frame(width: 800, height: 500)
+        }
+        .frame(width: 800, height: 500)
     }
 }
