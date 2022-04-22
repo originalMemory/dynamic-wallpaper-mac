@@ -18,6 +18,7 @@
 		089D2F62280D45F900C366D7 /* DropdownSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 089D2F61280D45F900C366D7 /* DropdownSelector.swift */; };
 		08C2C6242809482C00802C7E /* VideoPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08C2C6232809482C00802C7E /* VideoPreviewView.swift */; };
 		08C9E7552811529100581E03 /* VideoPreviewGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08C9E7542811529100581E03 /* VideoPreviewGrid.swift */; };
+		08C9E757281260ED00581E03 /* PlayConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08C9E756281260ED00581E03 /* PlayConfigView.swift */; };
 		144510D5E29C223FE9634AD4 /* Pods_DynamicWallpaper_DynamicWallpaperUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8CFBDAB9588486810035404E /* Pods_DynamicWallpaper_DynamicWallpaperUITests.framework */; };
 		37DC51000B79827DD8E0219D /* Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37DC5384E2C423DC95E4824F /* Extension.swift */; };
 		37DC532097325EFF9EA4EE2D /* WallpaperManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37DC5D4E9DAEA590877447C9 /* WallpaperManager.swift */; };
@@ -64,6 +65,7 @@
 		089D2F61280D45F900C366D7 /* DropdownSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropdownSelector.swift; sourceTree = "<group>"; };
 		08C2C6232809482C00802C7E /* VideoPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPreviewView.swift; sourceTree = "<group>"; };
 		08C9E7542811529100581E03 /* VideoPreviewGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPreviewGrid.swift; sourceTree = "<group>"; };
+		08C9E756281260ED00581E03 /* PlayConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayConfigView.swift; sourceTree = "<group>"; };
 		24278A8EA57098E16EC683FA /* Pods-DynamicWallpaperTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-DynamicWallpaperTests.debug.xcconfig"; path = "Target Support Files/Pods-DynamicWallpaperTests/Pods-DynamicWallpaperTests.debug.xcconfig"; sourceTree = "<group>"; };
 		37DC5384E2C423DC95E4824F /* Extension.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Extension.swift; sourceTree = "<group>"; };
 		37DC53B728B4BE916897AF3D /* main.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
@@ -185,6 +187,7 @@
 				37DC5D43C2AB7B76F852E8B1 /* WallpaperWindow.swift */,
 				0834787A280EB3440088B911 /* TextInputWindowController.swift */,
 				08C9E7542811529100581E03 /* VideoPreviewGrid.swift */,
+				08C9E756281260ED00581E03 /* PlayConfigView.swift */,
 			);
 			path = View;
 			sourceTree = "<group>";
@@ -468,6 +471,7 @@
 				08C9E7552811529100581E03 /* VideoPreviewGrid.swift in Sources */,
 				37DC5F62EE6E5DA6C40C004D /* VideoHelper.swift in Sources */,
 				089D2F62280D45F900C366D7 /* DropdownSelector.swift in Sources */,
+				08C9E757281260ED00581E03 /* PlayConfigView.swift in Sources */,
 				37DC556AE8D2CD089DE213EF /* VideoContentView.swift in Sources */,
 				0834787B280EB3440088B911 /* TextInputWindowController.swift in Sources */,
 				37DC5B53622BFCFFB854CD1D /* WallpaperWindow.swift in Sources */,

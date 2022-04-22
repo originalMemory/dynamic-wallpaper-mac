@@ -16,7 +16,7 @@ class WallpaperManager {
     private init() {}
 
     func setup() {
-        /// 初始化壁纸信息
+        // 初始化壁纸信息
         var screenInfos: [ScreenInfo] = []
         for screen in NSScreen.screens {
             screenInfos.append(ScreenInfo.from(screen: screen))
@@ -24,7 +24,7 @@ class WallpaperManager {
         }
         NotificationCenter.default.post(name: ScreenDidChangeNotification, object: screenInfos)
 
-        /// - 监听screens 变化
+        // 监听screens 变化
         self.preScreensHashValue = NSScreen.screens.hashValue
         let observer = CFRunLoopObserverCreateWithHandler(
             kCFAllocatorDefault,
@@ -39,6 +39,8 @@ class WallpaperManager {
             }
         }
         CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+
+        loadConfig()
     }
 
     private func refreshWallpaper() {
@@ -59,6 +61,10 @@ class WallpaperManager {
         guard let monitor = getMonitor(screenHash: screenHash) else {
             return
         }
+        refreshWindow(monitor: monitor, videoUrl: videoUrl)
+    }
+
+    private func refreshWindow(monitor: Monitor, videoUrl: URL) {
         if monitor.window == nil {
             let screen = monitor.screen
             let window = WallpaperWindow(
@@ -84,5 +90,56 @@ class WallpaperManager {
 
     private func getMonitor(screenHash: Int) -> Monitor? {
         monitors.first(where: { $0.screen.hash == screenHash })
+    }
+
+    // MARK: - 列表播放控制
+
+    private var timer: Timer?
+    var config: PlayConfig?
+    private let kConfig = "playConfig"
+
+    private func loadConfig() {
+        guard let jsonStr = UserDefaults.standard.string(forKey: kConfig),
+              let data = jsonStr.data(using: .utf8),
+              let config = try? JSONDecoder().decode(PlayConfig.self, from: data) else { return }
+        startPlay(config: config)
+    }
+
+    func updateConfig(config: PlayConfig) {
+        guard let jsonData = try? JSONEncoder().encode(config) else { return }
+        let jsonStr = String(decoding: jsonData, as: UTF8.self)
+        UserDefaults.standard.set(jsonStr, forKey: kConfig)
+        startPlay(config: config)
+    }
+
+    private func startPlay(config: PlayConfig) {
+        self.config = config
+        stopPlay()
+        timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(config.periodInMin * 60), repeats: true) { timer in
+            for monitor in self.monitors {
+                let count = monitor.videoUrls.count
+                if count <= 1 {
+                    continue
+                }
+                let nextIndex: Int
+                switch config.loopType {
+                case .order:
+                    if monitor.urlIndex < count - 1 {
+                        nextIndex = monitor.urlIndex + 1
+                    } else {
+                        nextIndex = 0
+                    }
+                case .random:
+                    nextIndex = Int.random(in: 0..<count)
+                }
+                monitor.urlIndex = nextIndex
+                self.refreshWindow(monitor: monitor, videoUrl: URL(fileURLWithPath: monitor.videoUrls[nextIndex]))
+            }
+        }
+    }
+
+    func stopPlay() {
+        timer?.invalidate()
+        timer = nil
     }
 }

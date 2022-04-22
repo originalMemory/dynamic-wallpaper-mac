@@ -73,10 +73,22 @@ struct ScreenInfo {
 
 class Monitor {
     let screen: NSScreen
-    var videoUrl: String?
+    var videoUrls: [String] = []
+    var urlIndex: Int = -1
     var window: WallpaperWindow?
 
     init(screen: NSScreen) {
         self.screen = screen
     }
+}
+
+enum PlayLoopType: String, Codable, CaseIterable {
+    case order
+    case random
+}
+
+struct PlayConfig: Codable {
+    /// 间隔时间，分钟为单位
+    let periodInMin: Int
+    let loopType: PlayLoopType
 }
