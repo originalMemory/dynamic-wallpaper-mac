@@ -31,7 +31,7 @@ struct ContentView: View {
         static let horizontalMargin: CGFloat = 8
     }
 
-    @State private var showModeIndex = 0
+    @State private var showModeIndex = 1
 
     @State private var searchTitle: String = ""
     @State private var videoVms: [VideoPreviewView.ViewModel]
@@ -107,7 +107,7 @@ struct ContentView: View {
                     }.padding(.leading, Metric.horizontalMargin)
                 case .playlist:
                     HStack {
-                        playlistPicker.padding(.leading, Metric.horizontalMargin).frame(width: 150)
+                        playlistPicker.frame(width: 150)
                         Button("创建") {
                             TextInputWC { text in
                                 createPlaylist(name: text)
@@ -126,7 +126,13 @@ struct ContentView: View {
                         }
                         .disabled(curPlaylistIndex < 0)
                         Spacer()
-                    }
+                        Button("播放设置") {
+                            let window =
+                                NSWindow(contentViewController: NSHostingController(rootView: PlayConfigView()))
+                            window.title = "播放设置"
+                            NSWindowController(window: window).showWindow(nil)
+                        }
+                    }.padding(.horizontal, Metric.horizontalMargin)
                 }
                 Divider().padding(.horizontal, Metric.horizontalMargin)
                 VideoPreviewGrid(vms: $videoVms) { id, enableMulti in
@@ -189,7 +195,7 @@ struct ContentView: View {
                     let info = screenInfos[curScreenIndex]
                     Text(info.name)
                     Text("\(Int(info.size.width))*\(Int(info.size.height))")
-                    Button("设置为该显示器的壁纸") {
+                    Button("设置选中的壁纸") {
                         guard let video = selectedVideos.first,
                               let path = VideoHelper.share.getFullPath(videoId: video.id, filename: video.file)
                         else {
@@ -199,6 +205,16 @@ struct ContentView: View {
                             screenHash: info.screenHash,
                             videoUrl: URL(fileURLWithPath: path)
                         )
+                    }
+                    if curShowMode() == .playlist {
+                        Button("设置当前的播放列表") {
+                            if let playlistId = playlists.safeValue(index: curPlaylistIndex)?.id {
+                                WallpaperManager.share.setPlaylistToMonitor(
+                                    playlistId: playlistId,
+                                    screenHash: info.screenHash
+                                )
+                            }
+                        }
                     }
                 }
                 .padding(10)
@@ -240,23 +256,23 @@ struct ContentView: View {
             }
 
             Spacer()
-            Text("播放列表")
-            VStack {
-                if curShowMode() == .allVideo {
+            if curShowMode() == .allVideo {
+                Text("播放列表")
+                VStack {
                     playlistPicker
-                }
-                HStack {
-                    Button("添加") {
-                        addOrDelVideoToPlaylist(isAdd: true)
+                    HStack {
+                        Button("添加") {
+                            addOrDelVideoToPlaylist(isAdd: true)
+                        }
+                        Button("删除") {
+                            addOrDelVideoToPlaylist(isAdd: false)
+                        }
                     }
-                    Button("删除") {
-                        addOrDelVideoToPlaylist(isAdd: false)
-                    }
+                    .disabled(curPlaylistIndex < 0)
                 }
-                .disabled(curPlaylistIndex < 0)
+                .frame(maxWidth: .infinity)
+                .padding().overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
             }
-            .frame(maxWidth: .infinity)
-            .padding().overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
         }
         .frame(width: 200)
         .onReceive(NotificationCenter.default.publisher(for: ScreenDidChangeNotification)) { output in

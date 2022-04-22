@@ -20,7 +20,10 @@ class WallpaperManager {
         var screenInfos: [ScreenInfo] = []
         for screen in NSScreen.screens {
             screenInfos.append(ScreenInfo.from(screen: screen))
-            monitors.append(Monitor(screen: screen))
+            let monitor = Monitor(screen: screen)
+            monitors.append(monitor)
+            let playlistId = UserDefaults.standard.string(forKey: getScreenPlaylistKey(screenHash: screen.hash))
+            setPlaylistToMonitor(playlistId: Int64(playlistId ?? "") ?? 0, screenHash: screen.hash)
         }
         NotificationCenter.default.post(name: ScreenDidChangeNotification, object: screenInfos)
 
@@ -65,6 +68,7 @@ class WallpaperManager {
     }
 
     private func refreshWindow(monitor: Monitor, videoUrl: URL) {
+        print("显示器：\(monitor.screen.localizedName), 壁纸：\(videoUrl.absoluteString)")
         if monitor.window == nil {
             let screen = monitor.screen
             let window = WallpaperWindow(
@@ -97,6 +101,7 @@ class WallpaperManager {
     private var timer: Timer?
     var config: PlayConfig?
     private let kConfig = "playConfig"
+    private let kScreenPlaylist = "screenPlaylist_"
 
     private func loadConfig() {
         guard let jsonStr = UserDefaults.standard.string(forKey: kConfig),
@@ -113,6 +118,7 @@ class WallpaperManager {
     }
 
     private func startPlay(config: PlayConfig) {
+        print("开始播放 \(config)")
         self.config = config
         stopPlay()
         timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(config.periodInMin * 60), repeats: true) { timer in
@@ -133,7 +139,7 @@ class WallpaperManager {
                     nextIndex = Int.random(in: 0..<count)
                 }
                 monitor.urlIndex = nextIndex
-                self.refreshWindow(monitor: monitor, videoUrl: URL(fileURLWithPath: monitor.videoUrls[nextIndex]))
+                self.refreshWindow(monitor: monitor, videoUrl: monitor.videoUrls[nextIndex])
             }
         }
     }
@@ -141,5 +147,31 @@ class WallpaperManager {
     func stopPlay() {
         timer?.invalidate()
         timer = nil
+    }
+
+    private func getScreenPlaylistKey(screenHash: Int) -> String {
+        "\(kScreenPlaylist)\(screenHash)"
+    }
+
+    func setPlaylistToMonitor(playlistId: Int64, screenHash: Int) {
+        guard let monitor = getMonitor(screenHash: screenHash),
+              let playlists: [Playlist] = DBManager.share.queryFromDb(
+                  fromTable: Table.playlist,
+                  where: Video.Properties.id.is(playlistId)
+              ),
+              let videoIds = playlists.first?.videoIdList(),
+              let videos: [Video] = DBManager.share.queryFromDb(
+                  fromTable: Table.video,
+                  where: Video.Properties.id.in(videoIds)
+              )
+        else {
+            return
+        }
+        UserDefaults.standard.set(String(playlistId), forKey: getScreenPlaylistKey(screenHash: screenHash))
+        monitor.videoUrls = videos.compactMap { $0.fullFilePath() }.map { URL(fileURLWithPath: $0) }
+        monitor.urlIndex = 0
+        if let url = monitor.videoUrls.first {
+            refreshWindow(monitor: monitor, videoUrl: url)
+        }
     }
 }
