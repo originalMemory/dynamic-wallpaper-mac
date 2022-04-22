@@ -82,7 +82,6 @@ struct ContentView: View {
                 }.labelsHidden()
                     .pickerStyle(SegmentedPickerStyle())
                     .onChange(of: showModeIndex) { index in
-                        print("showMode: \(showModeIndex)")
                         switch MiddleShowType.allCases[index] {
                         case .allVideo:
                             searchVideo()
@@ -130,8 +129,8 @@ struct ContentView: View {
                     }
                 }
                 Divider().padding(.horizontal, Metric.horizontalMargin)
-                VideoPreviewGrid(vms: $videoVms) { ids in
-                    refreshDetailVideos(ids: ids)
+                VideoPreviewGrid(vms: $videoVms) { id, enableMulti in
+                    onVideoPreviewClick(id: id, enableMulti: enableMulti)
                 }
             }
             Divider()
@@ -183,6 +182,7 @@ struct ContentView: View {
             }
             .frame(height: Metric.rightWidth * 0.7)
 
+            let selectedVideos = videoVms.filter { model in model.isSelected }
             if curScreenIndex >= 0 {
                 Text("选中的显示器").padding(.top, 10)
                 VStack(alignment: .center, spacing: 10) {
@@ -205,7 +205,6 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
                 .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
             }
-
             if !selectedVideos.isEmpty {
                 Text("选中的壁纸")
                 ScrollView {
@@ -268,12 +267,19 @@ struct ContentView: View {
         }
     }
 
-    private func refreshDetailVideos(ids: [Int64]) {
-        let videos: [Video] = DBManager.share.queryFromDb(
-            fromTable: Table.video,
-            where: Video.Properties.id.in(ids)
-        ) ?? []
-        selectedVideos = videos
+    private func onVideoPreviewClick(id: Int64, enableMulti: Bool) {
+        if !enableMulti {
+            resetVideoSelectStatus()
+        }
+        guard let index = videoVms.firstIndex(where: { $0.id == id }) else { return }
+        let video = videoVms[index]
+        videoVms[index] = video.copy(isSelect: !video.isSelected)
+    }
+
+    private func resetVideoSelectStatus() {
+        for i in 0..<videoVms.count {
+            videoVms[i] = videoVms[i].copy(isSelect: false)
+        }
     }
 
     // MARK: - 点击事件
@@ -335,7 +341,6 @@ struct ContentView: View {
         playlist.name = name
         DBManager.share.insertToDb(objects: [playlist], intoTable: Table.playlist)
         playlists = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
-        selectedVideos.removeAll()
     }
 
     private func updatePlaylistName(id: Int64, name: String) {
@@ -359,7 +364,6 @@ struct ContentView: View {
         if curPlaylistIndex >= playlists.count {
             curPlaylistIndex -= 1
         }
-        selectedVideos.removeAll()
     }
 
     private func refreshPlaylistVideo() {
@@ -376,7 +380,7 @@ struct ContentView: View {
 
     private func addOrDelVideoToPlaylist(isAdd: Bool) {
         let playlist = playlists[curPlaylistIndex]
-        let videoIds = Set(playlist.videoIdList() + selectedVideos.map { $0.id }).map { String($0) }
+        let videoIds = Set(playlist.videoIdList() + videoVms.filter { $0.isSelected }.map { $0.id }).map { String($0) }
         playlist.videoIds = videoIds.joined(separator: ",")
         DBManager.share.updateToDb(
             table: Table.playlist,
@@ -386,6 +390,8 @@ struct ContentView: View {
         )
         if curShowMode() == .playlist {
             refreshPlaylistVideo()
+        } else {
+            resetVideoSelectStatus()
         }
     }
 }

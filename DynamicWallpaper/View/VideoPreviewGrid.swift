@@ -9,11 +9,10 @@ import SwiftUI
 
 struct VideoPreviewGrid: View {
     @Binding var vms: [VideoPreviewView.ViewModel]
-    let onClick: ([Int64]) -> Void
+    let onClick: (Int64, Bool) -> Void
 
     let padding: CGFloat = 10
 
-    @State private var selectedIds: [Int64] = []
     @State var enableMulti: Bool = false
 
     var body: some View {
@@ -26,27 +25,13 @@ struct VideoPreviewGrid: View {
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: padding), count: 3)) {
                     ForEach(vms, id: \.self) { vm in
-                        VideoPreviewView(vm: vm, isSelected: selectedIds.contains(vm.id)).frame(height: 200)
+                        VideoPreviewView(vm: vm).frame(height: 200)
                             .onTapGesture {
-                                if !enableMulti {
-                                    selectedIds.removeAll()
-                                }
-                                if selectedIds.contains(vm.id) {
-                                    selectedIds.removeAll {
-                                        $0 == vm.id
-                                    }
-                                } else {
-                                    selectedIds.append(vm.id)
-                                }
-                                onClick(selectedIds)
+                                onClick(vm.id, enableMulti)
                             }
                     }
                 }
                 .padding(padding)
-            }
-            .onChange(of: vms) { _ in
-                selectedIds.removeAll()
-                onClick(selectedIds)
             }
         }
     }
@@ -55,20 +40,29 @@ struct VideoPreviewGrid: View {
 struct VideoPreviewGrid_Previews: PreviewProvider {
     static var previews: some View {
         let vms: [VideoPreviewView.ViewModel] = [
-            VideoPreviewView.ViewModel(id: 1, title: "1", previewImage: nil),
-            VideoPreviewView.ViewModel(id: 2, title: "2", previewImage: nil),
-            VideoPreviewView.ViewModel(id: 3, title: "3", previewImage: nil),
-            VideoPreviewView.ViewModel(id: 4, title: "4", previewImage: nil),
-            VideoPreviewView.ViewModel(id: 5, title: "5", previewImage: nil),
-            VideoPreviewView.ViewModel(id: 6, title: "6", previewImage: nil),
-            VideoPreviewView.ViewModel(id: 7, title: "7", previewImage: nil),
-            VideoPreviewView.ViewModel(id: 8, title: "8", previewImage: nil),
-            VideoPreviewView.ViewModel(id: 9, title: "9", previewImage: nil),
-            VideoPreviewView.ViewModel(id: 10, title: "10", previewImage: nil)
+            VideoPreviewView.ViewModel.mock(id: 1, title: "1"),
+            VideoPreviewView.ViewModel.mock(id: 2, title: "2"),
+            VideoPreviewView.ViewModel.mock(id: 3, title: "3"),
+            VideoPreviewView.ViewModel.mock(id: 4, title: "4"),
+            VideoPreviewView.ViewModel.mock(id: 5, title: "5")
         ]
-        VideoPreviewGrid(vms: .constant(vms)) { ids in
-            print(ids)
+        VideoPreviewGrid(vms: .constant(vms)) { id, enableMulti in
+            print(id)
         }
         .frame(width: 800, height: 500)
+    }
+}
+
+private extension VideoPreviewView.ViewModel {
+    static func mock(id: Int64, title: String, isSelected: Bool = false) -> VideoPreviewView.ViewModel {
+        VideoPreviewView.ViewModel(
+            id: id,
+            title: title,
+            desc: nil,
+            tags: nil,
+            file: "",
+            previewImage: nil,
+            isSelected: isSelected
+        )
     }
 }

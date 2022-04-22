@@ -12,14 +12,34 @@ struct VideoPreviewView: View {
     struct ViewModel: Hashable {
         let id: Int64
         let title: String
+        let desc: String?
+        let tags: String?
+        let file: String
         let previewImage: NSImage?
+        let isSelected: Bool
 
         static func from(video: Video) -> ViewModel {
             let path = VideoHelper.share.getFullPath(videoId: video.id, filename: video.preview)
             return VideoPreviewView.ViewModel(
                 id: video.id,
                 title: video.title,
-                previewImage: path != nil ? NSImage(contentsOfFile: path!) : nil
+                desc: video.desc,
+                tags: video.tags,
+                file: video.file,
+                previewImage: path != nil ? NSImage(contentsOfFile: path!) : nil,
+                isSelected: false
+            )
+        }
+
+        func copy(isSelect: Bool) -> ViewModel {
+            ViewModel(
+                id: id,
+                title: title,
+                desc: desc,
+                tags: tags,
+                file: file,
+                previewImage: previewImage,
+                isSelected: isSelect
             )
         }
 
@@ -31,7 +51,6 @@ struct VideoPreviewView: View {
     private let corner = RoundedRectangle(cornerRadius: 10, style: .continuous)
 
     let vm: ViewModel
-    let isSelected: Bool
     @State var isHover = false
 
     var body: some View {
@@ -60,7 +79,7 @@ struct VideoPreviewView: View {
                 Color.white.opacity(0.3).clipShape(corner)
             }
         }
-        .overlay(corner.stroke(isSelected ? Color.blue : Color.white, lineWidth: isSelected ? 2 : 1))
+        .overlay(corner.stroke(vm.isSelected ? Color.blue : Color.white, lineWidth: vm.isSelected ? 2 : 1))
         .onHover { hover in
             isHover = hover
         }
@@ -72,8 +91,12 @@ struct VideoPreviewView_Previews: PreviewProvider {
         let model = VideoPreviewView.ViewModel(
             id: 0,
             title: "测试标题2",
-            previewImage: nil
+            desc: nil,
+            tags: nil,
+            file: "",
+            previewImage: nil,
+            isSelected: false
         )
-        return VideoPreviewView(vm: model, isSelected: false).frame(width: 400, height: 300)
+        return VideoPreviewView(vm: model).frame(width: 400, height: 300)
     }
 }
