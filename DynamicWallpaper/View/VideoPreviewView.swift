@@ -55,17 +55,12 @@ struct VideoPreviewView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            GeometryReader { geometryProxy in
+            // 通过这个限制高度为外面设置的高度
+            GeometryReader { _ in
                 if let previewImage = vm.previewImage {
-                    Image(nsImage: previewImage).resizable().scaledToFill().frame(
-                        width: geometryProxy.size.width,
-                        height: geometryProxy.size.height
-                    ).clipShape(corner)
+                    Image(nsImage: previewImage).resizable().scaledToFill()
                 } else {
-                    Image("defaultPreview").resizable().scaledToFill().frame(
-                        width: geometryProxy.size.width,
-                        height: geometryProxy.size.height
-                    ).clipShape(corner)
+                    Image("defaultPreview").resizable().scaledToFill()
                 }
             }
             HStack {
@@ -79,6 +74,10 @@ struct VideoPreviewView: View {
                 Color.white.opacity(0.3).clipShape(corner)
             }
         }
+        // 裁剪点击区域，这个必须有，才能裁剪掉点击区域
+        .contentShape(corner)
+        // 裁剪显示区域
+        .clipShape(corner)
         .overlay(corner.stroke(vm.isSelected ? Color.blue : Color.white, lineWidth: vm.isSelected ? 2 : 1))
         .onHover { hover in
             isHover = hover

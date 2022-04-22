@@ -25,10 +25,12 @@ struct VideoPreviewGrid: View {
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: padding), count: 3)) {
                     ForEach(vms, id: \.self) { vm in
-                        VideoPreviewView(vm: vm).frame(height: 200)
-                            .onTapGesture {
-                                onClick(vm.id, enableMulti)
-                            }
+                        Button {
+                            onClick(vm.id, enableMulti)
+                        } label: {
+                            VideoPreviewView(vm: vm).frame(height: 200)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
                 .padding(padding)
