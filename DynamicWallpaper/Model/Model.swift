@@ -14,6 +14,7 @@ class Video: TableCodable {
     var file: String = ""
     /// 对应 Wallpaper Engine 软件里的 id
     var wallpaperEngineId: Int64?
+    var contentrating: String?
 
     enum CodingKeys: String, CodingTableKey {
         typealias Root = Video
@@ -24,6 +25,8 @@ class Video: TableCodable {
         case tags
         case preview
         case file
+        case wallpaperEngineId
+        case contentrating
 
         static var columnConstraintBindings: [CodingKeys: ColumnConstraintBinding]? {
             [videoId: ColumnConstraintBinding(isPrimary: true)]

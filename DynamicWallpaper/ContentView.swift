@@ -31,7 +31,7 @@ struct ContentView: View {
         static let horizontalMargin: CGFloat = 8
     }
 
-    @State private var showModeIndex = 1
+    @State private var showModeIndex = 0
 
     @State private var searchTitle: String = ""
     @State private var videoVms: [VideoPreviewView.ViewModel]
@@ -139,6 +139,11 @@ struct ContentView: View {
                 Divider().padding(.horizontal, Metric.horizontalMargin)
                 VideoPreviewGrid(vms: $videoVms) { id, enableMulti in
                     onVideoPreviewClick(id: id, enableMulti: enableMulti)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: VideoImportIndexNotification)) { output in
+                    if curShowMode() == .allVideo {
+                        searchVideo()
+                    }
                 }
             }
             Divider()
@@ -351,7 +356,7 @@ struct ContentView: View {
                     filePaths.append(url.path.appendPathComponent(path))
                 }
             }
-            VideoHelper.share.importVideo(filePaths: filePaths)
+            ImportProgressView(paths: filePaths).showInNewWindow(title: "导入本地视频中")
         }
     }
 
