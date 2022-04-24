@@ -6,7 +6,7 @@ import Foundation
 import WCDBSwift
 
 class Video: TableCodable {
-    var id: Int64 = 0
+    var videoId: Int64 = 0
     var title: String = ""
     var desc: String?
     var tags: String?
@@ -18,7 +18,7 @@ class Video: TableCodable {
     enum CodingKeys: String, CodingTableKey {
         typealias Root = Video
         static let objectRelationalMapping = TableBinding(CodingKeys.self)
-        case id
+        case videoId = "id"
         case title
         case desc = "description"
         case tags
@@ -26,7 +26,7 @@ class Video: TableCodable {
         case file
 
         static var columnConstraintBindings: [CodingKeys: ColumnConstraintBinding]? {
-            [id: ColumnConstraintBinding(isPrimary: true)]
+            [videoId: ColumnConstraintBinding(isPrimary: true)]
         }
     }
 
@@ -34,24 +34,24 @@ class Video: TableCodable {
     var lastInsertedRowID: Int64 = 0 // 用于获取自增插入后的主键值
 
     func fullFilePath() -> String? {
-        VideoHelper.share.getFullPath(videoId: id, filename: file)
+        VideoHelper.share.getFullPath(videoId: videoId, filename: file)
     }
 }
 
 class Playlist: TableCodable {
-    var id: Int64 = 0
+    var playlistId: Int64 = 0
     var name: String = ""
     var videoIds: String = ""
 
     enum CodingKeys: String, CodingTableKey {
         typealias Root = Playlist
         static let objectRelationalMapping = TableBinding(CodingKeys.self)
-        case id
+        case playlistId = "id"
         case name
         case videoIds
 
         static var columnConstraintBindings: [CodingKeys: ColumnConstraintBinding]? {
-            [id: ColumnConstraintBinding(isPrimary: true)]
+            [playlistId: ColumnConstraintBinding(isPrimary: true)]
         }
     }
 

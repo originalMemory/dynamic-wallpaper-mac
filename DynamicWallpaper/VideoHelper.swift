@@ -70,7 +70,7 @@ class VideoHelper {
                             Video.Properties.preview
                         ],
                         with: model,
-                        where: Video.Properties.id.is(model.lastInsertedRowID)
+                        where: Video.Properties.videoId.is(model.lastInsertedRowID)
                     )
                 }
             } catch {

@@ -119,7 +119,7 @@ struct ContentView: View {
                         }
                         Button("修改") {
                             TextInputWC(text: playlists[curPlaylistIndex].name) { text in
-                                updatePlaylistName(id: playlists[curPlaylistIndex].id, name: text)
+                                updatePlaylistName(id: playlists[curPlaylistIndex].playlistId, name: text)
                             }
                             .showWindow(nil)
                         }
@@ -216,7 +216,7 @@ struct ContentView: View {
                     }
                     if curShowMode() == .playlist {
                         Button("设置当前播放列表") {
-                            if let playlistId = playlists.safeValue(index: curPlaylistIndex)?.id {
+                            if let playlistId = playlists.safeValue(index: curPlaylistIndex)?.playlistId {
                                 WallpaperManager.share.setPlaylistToMonitor(
                                     playlistId: playlistId,
                                     screenHash: info.screenHash
@@ -386,7 +386,7 @@ struct ContentView: View {
             table: Table.playlist,
             on: [Playlist.Properties.name],
             with: playlist,
-            where: Playlist.Properties.id.is(id)
+            where: Playlist.Properties.playlistId.is(id)
         )
         playlists = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
     }
@@ -394,7 +394,7 @@ struct ContentView: View {
     private func delPlaylist() {
         DBManager.share.deleteFromDb(
             fromTable: Table.playlist,
-            where: Playlist.Properties.id.is(playlists[curPlaylistIndex].id)
+            where: Playlist.Properties.playlistId.is(playlists[curPlaylistIndex].playlistId)
         )
         playlists.remove(at: curPlaylistIndex)
         if curPlaylistIndex >= playlists.count {
@@ -406,7 +406,7 @@ struct ContentView: View {
         guard let videoIds = playlists.safeValue(index: curPlaylistIndex)?.videoIdList(),
               let videos: [Video] = DBManager.share.queryFromDb(
                   fromTable: Table.video,
-                  where: Video.Properties.id.in(videoIds)
+                  where: Video.Properties.videoId.in(videoIds)
               )
         else {
             return
@@ -424,7 +424,7 @@ struct ContentView: View {
             table: Table.playlist,
             on: [Playlist.Properties.videoIds],
             with: playlist,
-            where: Playlist.Properties.id.is(playlist.id)
+            where: Playlist.Properties.playlistId.is(playlist.playlistId)
         )
         if curShowMode() == .playlist {
             refreshPlaylistVideo()

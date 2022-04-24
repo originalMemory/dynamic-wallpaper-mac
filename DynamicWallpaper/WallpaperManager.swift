@@ -179,7 +179,7 @@ class WallpaperManager {
     private func getPlaylist(playlistId: Int64) -> Playlist? {
         guard let playlists: [Playlist] = DBManager.share.queryFromDb(
             fromTable: Table.playlist,
-            where: Video.Properties.id.is(playlistId),
+            where: Video.Properties.videoId.is(playlistId),
             limit: 1
         ) else { return nil }
         return playlists.first
@@ -189,7 +189,7 @@ class WallpaperManager {
         guard let playlist = getPlaylist(playlistId: playlistId) else { return nil }
         return DBManager.share.queryFromDb(
             fromTable: Table.video,
-            where: Video.Properties.id.in(playlist.videoIdList())
+            where: Video.Properties.videoId.in(playlist.videoIdList())
         )
     }
 
