@@ -6,6 +6,7 @@ import Foundation
 import SwiftUI
 
 let ScreenDidChangeNotification: Notification.Name = .init(rawValue: "ScreenDidChangeNotification")
+let VideoDidChangeNotification: Notification.Name = .init(rawValue: "VideoDidChangeNotification")
 
 class WallpaperManager {
     static let share = WallpaperManager()
@@ -60,15 +61,21 @@ class WallpaperManager {
         NotificationCenter.default.post(name: ScreenDidChangeNotification, object: nil)
     }
 
-    func setWallpaper(screenHash: Int, videoUrl: URL) {
+    func setWallpaper(screenHash: Int, videoName: String, videoUrl: URL) {
         guard let monitor = getMonitor(screenHash: screenHash) else {
             return
         }
-        refreshWindow(monitor: monitor, videoUrl: videoUrl)
+        refreshWindow(monitor: monitor, videoName: videoName, videoUrl: videoUrl)
     }
 
-    private func refreshWindow(monitor: Monitor, videoUrl: URL) {
-        print("显示器：\(monitor.screen.localizedName), 壁纸：\(videoUrl.absoluteString)")
+    private func refreshWindow(monitor: Monitor, videoName: String, videoUrl: URL) {
+        print("显示器：\(monitor.screen.localizedName), 壁纸：\(videoName)")
+        NotificationCenter.default.post(
+            name: VideoDidChangeNotification,
+            object: nil,
+            userInfo: [monitor.screen.hash: videoName]
+        )
+        monitor.videoName = videoName
         if monitor.window == nil {
             let screen = monitor.screen
             let window = WallpaperWindow(
@@ -92,7 +99,7 @@ class WallpaperManager {
         monitor.window = nil
     }
 
-    private func getMonitor(screenHash: Int) -> Monitor? {
+    func getMonitor(screenHash: Int) -> Monitor? {
         monitors.first(where: { $0.screen.hash == screenHash })
     }
 
@@ -123,23 +130,25 @@ class WallpaperManager {
         stopPlay()
         timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(config.periodInMin * 60), repeats: true) { timer in
             for monitor in self.monitors {
-                let count = monitor.videoUrls.count
-                if count <= 1 {
-                    continue
-                }
+                guard let playlistId = monitor.playlistId,
+                      let videos = self.getVideos(playlistId: playlistId) else { continue }
+                let count = videos.count
                 let nextIndex: Int
                 switch config.loopType {
                 case .order:
-                    if monitor.urlIndex < count - 1 {
-                        nextIndex = monitor.urlIndex + 1
+                    if monitor.index < count - 1 {
+                        nextIndex = monitor.index + 1
                     } else {
                         nextIndex = 0
                     }
                 case .random:
                     nextIndex = Int.random(in: 0..<count)
                 }
-                monitor.urlIndex = nextIndex
-                self.refreshWindow(monitor: monitor, videoUrl: monitor.videoUrls[nextIndex])
+                monitor.index = nextIndex
+                let video = videos[nextIndex]
+                if let path = video.fullFilePath() {
+                    self.refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))
+                }
             }
         }
     }
@@ -155,23 +164,43 @@ class WallpaperManager {
 
     func setPlaylistToMonitor(playlistId: Int64, screenHash: Int) {
         guard let monitor = getMonitor(screenHash: screenHash),
-              let playlists: [Playlist] = DBManager.share.queryFromDb(
-                  fromTable: Table.playlist,
-                  where: Video.Properties.id.is(playlistId)
-              ),
-              let videoIds = playlists.first?.videoIdList(),
-              let videos: [Video] = DBManager.share.queryFromDb(
-                  fromTable: Table.video,
-                  where: Video.Properties.id.in(videoIds)
-              )
+              let videos: [Video] = getVideos(playlistId: playlistId)
         else {
             return
         }
         UserDefaults.standard.set(String(playlistId), forKey: getScreenPlaylistKey(screenHash: screenHash))
-        monitor.videoUrls = videos.compactMap { $0.fullFilePath() }.map { URL(fileURLWithPath: $0) }
-        monitor.urlIndex = 0
-        if let url = monitor.videoUrls.first {
-            refreshWindow(monitor: monitor, videoUrl: url)
+        monitor.playlistId = playlistId
+        if let video = videos.first, let path = video.fullFilePath() {
+            monitor.index = 0
+            refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))
         }
+    }
+
+    private func getPlaylist(playlistId: Int64) -> Playlist? {
+        guard let playlists: [Playlist] = DBManager.share.queryFromDb(
+            fromTable: Table.playlist,
+            where: Video.Properties.id.is(playlistId),
+            limit: 1
+        ) else { return nil }
+        return playlists.first
+    }
+
+    private func getVideos(playlistId: Int64) -> [Video]? {
+        guard let playlist = getPlaylist(playlistId: playlistId) else { return nil }
+        return DBManager.share.queryFromDb(
+            fromTable: Table.video,
+            where: Video.Properties.id.in(playlist.videoIdList())
+        )
+    }
+
+    /// 这两个方法是用于设置页面初始化信息
+    func getScreenPlaylistName(screenHash: Int) -> String? {
+        guard let playlistId = UserDefaults.standard.string(forKey: getScreenPlaylistKey(screenHash: screenHash)),
+              let playlist = getPlaylist(playlistId: Int64(playlistId) ?? -1) else { return nil }
+        return playlist.name
+    }
+
+    func getScreenPlayingVideoName(screenHash: Int) -> String? {
+        getMonitor(screenHash: screenHash)?.videoName
     }
 }

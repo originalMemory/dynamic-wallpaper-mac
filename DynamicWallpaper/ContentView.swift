@@ -38,7 +38,7 @@ struct ContentView: View {
     @State private var screenInfos: [ScreenInfo]
 
     @State private var playlists: [Playlist]
-    @State private var curPlaylistIndex: Int = 0
+    @State private var curPlaylistIndex: Int = -1
 
     @State private var curScreenIndex: Int = 0
     @State private var monitorScale: CGFloat = 0
@@ -49,8 +49,11 @@ struct ContentView: View {
         videoVms = videos.map { video in
             VideoPreviewView.ViewModel.from(video: video)
         }
-        screenInfos = NSScreen.screens.map {
-            ScreenInfo.from(screen: $0)
+        screenInfos = NSScreen.screens.map { screen in
+            var info = ScreenInfo.from(screen: screen)
+            info.playlistName = WallpaperManager.share.getScreenPlaylistName(screenHash: screen.hash)
+            info.videoName = WallpaperManager.share.getScreenPlayingVideoName(screenHash: screen.hash)
+            return info
         }
 
         playlists = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
@@ -79,21 +82,23 @@ struct ContentView: View {
                     ForEach(0..<MiddleShowType.allCases.count, id: \.self) { i in
                         Text(MiddleShowType.allCases[i].text())
                     }
-                }.labelsHidden()
-                    .pickerStyle(SegmentedPickerStyle())
-                    .onChange(of: showModeIndex) { index in
-                        switch MiddleShowType.allCases[index] {
-                        case .allVideo:
-                            searchVideo()
-                        case .playlist:
-                            videoVms.removeAll()
-                            refreshPlaylistVideo()
-                        }
-                    }.padding(.top, 10).frame(width: 250)
+                }
+                .labelsHidden()
+                .pickerStyle(SegmentedPickerStyle())
+                .onChange(of: showModeIndex) { index in
+                    switch MiddleShowType.allCases[index] {
+                    case .allVideo:
+                        searchVideo()
+                    case .playlist:
+                        videoVms.removeAll()
+                        refreshPlaylistVideo()
+                    }
+                }
+                .padding(.top, 10).frame(width: 250)
                 Divider().padding(.horizontal, Metric.horizontalMargin)
-                switch MiddleShowType.allCases[showModeIndex] {
-                case .allVideo:
-                    HStack {
+                HStack {
+                    switch MiddleShowType.allCases[showModeIndex] {
+                    case .allVideo:
                         Button("导入视频") {
                             selectImportVideoPaths()
                         }
@@ -104,9 +109,7 @@ struct ContentView: View {
                             searchVideo()
                         }
                         Spacer()
-                    }.padding(.leading, Metric.horizontalMargin)
-                case .playlist:
-                    HStack {
+                    case .playlist:
                         playlistPicker.frame(width: 150)
                         Button("创建") {
                             TextInputWC { text in
@@ -127,13 +130,12 @@ struct ContentView: View {
                         .disabled(curPlaylistIndex < 0)
                         Spacer()
                         Button("播放设置") {
-                            let window =
-                                NSWindow(contentViewController: NSHostingController(rootView: PlayConfigView()))
-                            window.title = "播放设置"
-                            NSWindowController(window: window).showWindow(nil)
+                            PlayConfigView().showInNewWindow(title: "播放设置")
                         }
-                    }.padding(.horizontal, Metric.horizontalMargin)
+                        Spacer()
+                    }
                 }
+                .padding(.leading, Metric.horizontalMargin)
                 Divider().padding(.horizontal, Metric.horizontalMargin)
                 VideoPreviewGrid(vms: $videoVms) { id, enableMulti in
                     onVideoPreviewClick(id: id, enableMulti: enableMulti)
@@ -150,8 +152,11 @@ struct ContentView: View {
             ForEach(0..<playlists.count, id: \.self) { i in
                 Text(playlists[i].name)
             }
-        }.labelsHidden().onChange(of: curPlaylistIndex) { index in
-            refreshPlaylistVideo()
+        }
+        .labelsHidden().onChange(of: curPlaylistIndex) { index in
+            if curShowMode() == .playlist {
+                refreshPlaylistVideo()
+            }
         }
     }
 
@@ -195,19 +200,22 @@ struct ContentView: View {
                     let info = screenInfos[curScreenIndex]
                     Text(info.name)
                     Text("\(Int(info.size.width))*\(Int(info.size.height))")
-                    Button("设置选中的壁纸") {
-                        guard let video = selectedVideos.first,
-                              let path = VideoHelper.share.getFullPath(videoId: video.id, filename: video.file)
-                        else {
-                            return
+                    if curShowMode() == .allVideo {
+                        Button("设置选中的壁纸") {
+                            guard let video = selectedVideos.first,
+                                  let path = VideoHelper.share.getFullPath(videoId: video.id, filename: video.file)
+                            else {
+                                return
+                            }
+                            WallpaperManager.share.setWallpaper(
+                                screenHash: info.screenHash,
+                                videoName: video.title,
+                                videoUrl: URL(fileURLWithPath: path)
+                            )
                         }
-                        WallpaperManager.share.setWallpaper(
-                            screenHash: info.screenHash,
-                            videoUrl: URL(fileURLWithPath: path)
-                        )
                     }
                     if curShowMode() == .playlist {
-                        Button("设置当前的播放列表") {
+                        Button("设置当前播放列表") {
                             if let playlistId = playlists.safeValue(index: curPlaylistIndex)?.id {
                                 WallpaperManager.share.setPlaylistToMonitor(
                                     playlistId: playlistId,
@@ -215,6 +223,18 @@ struct ContentView: View {
                                 )
                             }
                         }
+                    }
+                    Text("当前壁纸：\n\(info.videoName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
+                    Text("当前播放列表: \n\(info.playlistName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: VideoDidChangeNotification)) { output in
+                    guard let userInfo = output.userInfo else { return }
+                    for (key, value) in userInfo {
+                        guard let screenHash = key as? Int,
+                              let title = value as? String,
+                              let index = screenInfos.firstIndex(where: { info in info.screenHash == screenHash })
+                        else { continue }
+                        screenInfos[index].videoName = title
                     }
                 }
                 .padding(10)
@@ -383,10 +403,12 @@ struct ContentView: View {
     }
 
     private func refreshPlaylistVideo() {
-        guard let videos: [Video] = DBManager.share.queryFromDb(
-            fromTable: Table.video,
-            where: Video.Properties.id.in(playlists[curPlaylistIndex].videoIdList())
-        ) else {
+        guard let videoIds = playlists.safeValue(index: curPlaylistIndex)?.videoIdList(),
+              let videos: [Video] = DBManager.share.queryFromDb(
+                  fromTable: Table.video,
+                  where: Video.Properties.id.in(videoIds)
+              )
+        else {
             return
         }
         videoVms = videos.map { VideoPreviewView.ViewModel.from(video: $0) }

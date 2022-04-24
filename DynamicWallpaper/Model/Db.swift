@@ -93,7 +93,6 @@ class DBManager: NSObject {
                 limit: limit,
                 offset: offset
             ))!
-            debugPrint("\(allObjects)")
             return allObjects
         } catch {
             debugPrint("no data find \(error.localizedDescription)")

@@ -48,3 +48,13 @@ extension Array {
         return self[index]
     }
 }
+
+extension View {
+    func showInNewWindow(title: String? = nil) {
+        let window = NSWindow(contentViewController: NSHostingController(rootView: self))
+        if let title = title {
+            window.title = title
+        }
+        NSWindowController(window: window).showWindow(nil)
+    }
+}

@@ -68,6 +68,8 @@ struct ScreenInfo {
     let name: String
     let size: CGSize
     let origin: CGPoint
+    var playlistName: String? = nil
+    var videoName: String? = nil
 
     static func from(screen: NSScreen) -> ScreenInfo {
         ScreenInfo(
@@ -81,8 +83,9 @@ struct ScreenInfo {
 
 class Monitor {
     let screen: NSScreen
-    var videoUrls: [URL] = []
-    var urlIndex: Int = -1
+    var playlistId: Int64?
+    var videoName: String?
+    var index: Int = -1
     var window: WallpaperWindow?
 
     init(screen: NSScreen) {
