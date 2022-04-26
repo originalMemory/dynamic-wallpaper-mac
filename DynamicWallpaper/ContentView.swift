@@ -279,8 +279,11 @@ struct ContentView: View {
                             Text(video.tags ?? "").frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    Button("删除") {
-                        delSelectedVideo()
+                    HStack {
+                        Button("删除") { delSelectedVideo() }
+                        if curShowMode() == .playlist {
+                            Button("从列表中移除") { addOrDelVideoToPlaylist(isAdd: false) }
+                        }
                     }
                 }
                 .padding(10)
