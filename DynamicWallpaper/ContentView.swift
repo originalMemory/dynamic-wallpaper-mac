@@ -136,8 +136,8 @@ struct ContentView: View {
                 }
                 .padding(.leading, Metric.horizontalMargin)
                 Divider().padding(.horizontal, Metric.horizontalMargin)
-                VideoPreviewGrid(vms: $videoVms) { id, enableMulti in
-                    onVideoPreviewClick(id: id, enableMulti: enableMulti)
+                VideoPreviewGrid(vms: $videoVms) { id, enableMulti, enablePreview in
+                    onVideoPreviewClick(id: id, enableMulti: enableMulti, enablePreview: enablePreview)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: VideoImportIndexNotification)) { output in
                     if curShowMode() == .allVideo {
@@ -203,28 +203,24 @@ struct ContentView: View {
             if curScreenIndex >= 0 {
                 Text("选中的显示器").padding(.top, 10)
                 VStack(alignment: .center, spacing: 10) {
-                    let info = screenInfos[curScreenIndex]
+                    var info = screenInfos[curScreenIndex]
                     Text(info.name)
                     Text("\(Int(info.size.width))*\(Int(info.size.height))")
                     if curShowMode() == .allVideo {
                         Button("设置选中的壁纸") {
-                            guard let video = selectedVideos.first,
-                                  let path = VideoHelper.share.getFullPath(videoId: video.id, filename: video.file)
-                            else {
+                            guard let video = selectedVideos.first else {
                                 return
                             }
-                            WallpaperManager.share.setWallpaper(
-                                screenHash: info.screenHash,
-                                videoName: video.title,
-                                videoUrl: URL(fileURLWithPath: path)
-                            )
+                            setWallpaper(videoVm: video)
                         }
                     }
                     if curShowMode() == .playlist {
                         Button("设置当前播放列表") {
-                            if let playlistId = playlists.safeValue(index: curPlaylistIndex)?.playlistId {
+                            if let playlist = playlists.safeValue(index: curPlaylistIndex) {
+                                info.playlistName = playlist.title
+                                screenInfos[curScreenIndex] = info
                                 WallpaperManager.share.setPlaylistToMonitor(
-                                    playlistId: playlistId,
+                                    playlistId: playlist.playlistId,
                                     screenHash: info.screenHash
                                 )
                             }
@@ -309,13 +305,26 @@ struct ContentView: View {
         }
     }
 
-    private func onVideoPreviewClick(id: Int64, enableMulti: Bool) {
+    private func onVideoPreviewClick(id: Int64, enableMulti: Bool, enablePreview: Bool) {
         if !enableMulti {
             resetVideoSelectStatus()
         }
         guard let index = videoVms.firstIndex(where: { $0.id == id }) else { return }
-        let video = videoVms[index]
-        videoVms[index] = video.copy(isSelect: !video.isSelected)
+        var video = videoVms[index]
+        video.isSelected = !video.isSelected
+        videoVms[index] = video
+        if enablePreview {
+            setWallpaper(videoVm: video)
+        }
+    }
+
+    private func setWallpaper(videoVm: VideoPreviewView.ViewModel) {
+        guard let path = VideoHelper.share.getFullPath(videoId: videoVm.id, filename: videoVm.file) else { return }
+        WallpaperManager.share.setWallpaper(
+            screenHash: screenInfos[curScreenIndex].screenHash,
+            videoName: videoVm.title,
+            videoUrl: URL(fileURLWithPath: path)
+        )
     }
 
     private func resetVideoSelectStatus() {

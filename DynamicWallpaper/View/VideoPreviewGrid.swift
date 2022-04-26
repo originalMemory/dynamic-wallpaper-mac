@@ -9,24 +9,26 @@ import SwiftUI
 
 struct VideoPreviewGrid: View {
     @Binding var vms: [VideoPreviewView.ViewModel]
-    let onClick: (Int64, Bool) -> Void
+    let onClick: (Int64, Bool, Bool) -> Void
 
     let padding: CGFloat = 10
 
     @State var enableMulti: Bool = false
+    @State var enablePreview: Bool = false
 
     var body: some View {
         VStack {
             HStack {
                 Spacer()
                 Toggle("允许多选", isOn: $enableMulti).toggleStyle(SwitchToggleStyle(tint: .green))
+                Toggle("点击即预览", isOn: $enablePreview).toggleStyle(SwitchToggleStyle(tint: .green))
             }
             .padding(EdgeInsets(top: padding, leading: padding, bottom: 0, trailing: padding))
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: padding), count: 3)) {
                     ForEach(vms, id: \.self) { vm in
                         Button {
-                            onClick(vm.id, enableMulti)
+                            onClick(vm.id, enableMulti, enablePreview)
                         } label: {
                             VideoPreviewView(vm: vm).frame(height: 200)
                         }
@@ -48,7 +50,7 @@ struct VideoPreviewGrid_Previews: PreviewProvider {
             VideoPreviewView.ViewModel.mock(id: 4, title: "4"),
             VideoPreviewView.ViewModel.mock(id: 5, title: "5")
         ]
-        VideoPreviewGrid(vms: .constant(vms)) { id, enableMulti in
+        VideoPreviewGrid(vms: .constant(vms)) { id, enableMulti, enablePreview in
             print(id)
         }
         .frame(width: 800, height: 500)

@@ -16,7 +16,7 @@ struct VideoPreviewView: View {
         let tags: String?
         let file: String
         let previewImage: NSImage?
-        let isSelected: Bool
+        var isSelected: Bool
 
         static func from(video: Video) -> ViewModel {
             let path = VideoHelper.share.getFullPath(videoId: video.videoId, filename: video.preview)
