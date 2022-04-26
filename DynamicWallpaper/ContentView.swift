@@ -248,32 +248,37 @@ struct ContentView: View {
             }
             if !selectedVideos.isEmpty {
                 Text("选中的壁纸")
-                ScrollView {
-                    if selectedVideos.count > 1 {
-                        ForEach(0..<selectedVideos.count, id: \.self) { i in
-                            Text(selectedVideos[i].title).padding(.bottom, 2).frame(maxWidth: .infinity)
+                VStack {
+                    ScrollView {
+                        if selectedVideos.count > 1 {
+                            ForEach(0..<selectedVideos.count, id: \.self) { i in
+                                Text(selectedVideos[i].title).padding(.bottom, 2).frame(maxWidth: .infinity)
+                            }
+                        } else {
+                            let video = selectedVideos[0]
+                            HStack {
+                                Spacer()
+                                Text(video.title)
+                                Spacer()
+                            }
+                            Divider()
+                            HStack {
+                                Spacer()
+                                Text("描述").bold()
+                                Spacer()
+                            }
+                            Text(video.desc ?? "").frame(maxWidth: .infinity, alignment: .leading)
+                            Divider()
+                            HStack {
+                                Spacer()
+                                Text("标签").bold()
+                                Spacer()
+                            }
+                            Text(video.tags ?? "").frame(maxWidth: .infinity, alignment: .leading)
                         }
-                    } else {
-                        let video = selectedVideos[0]
-                        HStack {
-                            Spacer()
-                            Text(video.title)
-                            Spacer()
-                        }
-                        Divider()
-                        HStack {
-                            Spacer()
-                            Text("描述").bold()
-                            Spacer()
-                        }
-                        Text(video.desc ?? "").frame(maxWidth: .infinity, alignment: .leading)
-                        Divider()
-                        HStack {
-                            Spacer()
-                            Text("标签").bold()
-                            Spacer()
-                        }
-                        Text(video.tags ?? "").frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Button("删除") {
+                        delSelectedVideo()
                     }
                 }
                 .padding(10)
@@ -387,6 +392,25 @@ struct ContentView: View {
         videoVms = videos.map {
             VideoPreviewView.ViewModel.from(video: $0)
         }
+    }
+
+    private func delSelectedVideo() {
+        let videoIds = videoVms.filter { $0.isSelected }.map { $0.id }
+        for videoId in videoIds {
+            // TODO: 使用 regex 替换
+            let playlists = DBManager.share.search(
+                type: .playlist,
+                filter: Column.videoIds.like("%\(videoId)%")
+            ).map { $0.toPlaylist() }
+            for var playlist in playlists {
+                var videoIds = playlist.videoIdList()
+                videoIds.removeAll { $0 == videoId }
+                playlist.videoIds = videoIds.map { String($0) }.joined(separator: ",")
+                DBManager.share.updatePlaylist(id: playlist.playlistId, item: playlist)
+            }
+            DBManager.share.delete(type: .video, id: videoId)
+        }
+        videoVms.removeAll { vm in videoIds.contains(vm.id) }
     }
 
     // MARK: - 播放列表修改及展示
