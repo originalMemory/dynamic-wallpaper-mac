@@ -17,6 +17,7 @@ class WallpaperManager {
     private init() {}
 
     func setup() {
+        loadConfig()
         // 初始化壁纸信息
         var screenInfos: [ScreenInfo] = []
         for screen in NSScreen.screens {
@@ -43,8 +44,6 @@ class WallpaperManager {
             }
         }
         CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
-
-        loadConfig()
     }
 
     private func refreshWallpaper() {
@@ -132,24 +131,22 @@ class WallpaperManager {
             for monitor in self.monitors {
                 guard let playlistId = monitor.playlistId,
                       let videos = self.getVideos(playlistId: playlistId) else { continue }
-                let count = videos.count
-                let nextIndex: Int
-                switch config.loopType {
-                case .order:
-                    if monitor.index < count - 1 {
-                        nextIndex = monitor.index + 1
-                    } else {
-                        nextIndex = 0
-                    }
-                case .random:
-                    nextIndex = Int.random(in: 0..<count)
-                }
+                let nextIndex = self.getNextIndex(type: config.loopType, count: videos.count, curIndex: monitor.index)
                 monitor.index = nextIndex
                 let video = videos[nextIndex]
                 if let path = video.fullFilePath() {
                     self.refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))
                 }
             }
+        }
+    }
+
+    private func getNextIndex(type: PlayLoopType, count: Int, curIndex: Int = -1) -> Int {
+        switch type {
+        case .order:
+            return curIndex < count - 1 ? curIndex + 1 : 0
+        case .random:
+            return Int.random(in: 0..<count)
         }
     }
 
@@ -170,8 +167,9 @@ class WallpaperManager {
         }
         UserDefaults.standard.set(String(playlistId), forKey: getScreenPlaylistKey(screenHash: screenHash))
         monitor.playlistId = playlistId
-        if let video = videos.first, let path = video.fullFilePath() {
-            monitor.index = 0
+        let index = getNextIndex(type: config?.loopType ?? .order, count: videos.count)
+        if let video = videos.safeValue(index: index), let path = video.fullFilePath() {
+            monitor.index = index
             refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))
         }
     }
