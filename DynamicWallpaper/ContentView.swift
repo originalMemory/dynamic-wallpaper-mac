@@ -138,6 +138,9 @@ struct ContentView: View {
                 Divider().padding(.horizontal, Metric.horizontalMargin)
                 VideoPreviewGrid(vms: $videoVms) { id, enableMulti, enablePreview in
                     onVideoPreviewClick(id: id, enableMulti: enableMulti, enablePreview: enablePreview)
+                } selectAll: {
+                    let allSelected = videoVms.allSatisfy { model in model.isSelected }
+                    resetVideoSelectStatus(value: !allSelected)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: VideoImportIndexNotification)) { output in
                     if curShowMode() == .allVideo {
@@ -307,12 +310,11 @@ struct ContentView: View {
 
     private func onVideoPreviewClick(id: Int64, enableMulti: Bool, enablePreview: Bool) {
         if !enableMulti {
-            resetVideoSelectStatus()
+            resetVideoSelectStatus(value: false)
         }
         guard let index = videoVms.firstIndex(where: { $0.id == id }) else { return }
         var video = videoVms[index]
-        video.isSelected = !video.isSelected
-        videoVms[index] = video
+        videoVms[index] = video.setSelected(value: !video.isSelected)
         if enablePreview {
             setWallpaper(videoVm: video)
         }
@@ -327,11 +329,9 @@ struct ContentView: View {
         )
     }
 
-    private func resetVideoSelectStatus() {
+    private func resetVideoSelectStatus(value: Bool) {
         for i in 0..<videoVms.count {
-            var vm = videoVms[i]
-            vm.isSelected = false
-            videoVms[i] = vm
+            videoVms[i] = videoVms[i].setSelected(value: value)
         }
     }
 
@@ -439,7 +439,7 @@ struct ContentView: View {
         if curShowMode() == .playlist {
             refreshPlaylistVideo()
         } else {
-            resetVideoSelectStatus()
+            resetVideoSelectStatus(value: false)
         }
     }
 }

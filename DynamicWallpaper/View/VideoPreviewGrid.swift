@@ -10,6 +10,7 @@ import SwiftUI
 struct VideoPreviewGrid: View {
     @Binding var vms: [VideoPreviewView.ViewModel]
     let onClick: (Int64, Bool, Bool) -> Void
+    let selectAll: () -> Void
 
     let padding: CGFloat = 10
 
@@ -20,6 +21,7 @@ struct VideoPreviewGrid: View {
         VStack {
             HStack {
                 Text("总数：\(vms.count)")
+                Button(vms.allSatisfy { $0.isSelected } ? "取消全选" : "全选") {}.keyboardShortcut("A", modifiers: [.command])
                 Spacer()
                 Toggle("允许多选", isOn: $enableMulti).toggleStyle(SwitchToggleStyle(tint: .green))
                 Toggle("点击即预览", isOn: $enablePreview).toggleStyle(SwitchToggleStyle(tint: .green))
@@ -58,8 +60,8 @@ struct VideoPreviewGrid_Previews: PreviewProvider {
         ]
         VideoPreviewGrid(vms: .constant(vms)) { id, enableMulti, enablePreview in
             print(id)
-        }
-        .frame(width: 800, height: 500)
+        } selectAll: {}
+            .frame(width: 800, height: 500)
     }
 }
 

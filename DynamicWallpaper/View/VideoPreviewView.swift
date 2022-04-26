@@ -33,6 +33,11 @@ struct VideoPreviewView: View {
         func hash(into hasher: inout Hasher) {
             hasher.combine(id)
         }
+
+        mutating func setSelected(value: Bool) -> Self {
+            self.isSelected = value
+            return self
+        }
     }
 
     private let corner = RoundedRectangle(cornerRadius: 10, style: .continuous)
