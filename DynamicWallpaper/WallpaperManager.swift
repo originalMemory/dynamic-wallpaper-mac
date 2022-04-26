@@ -60,11 +60,15 @@ class WallpaperManager {
         NotificationCenter.default.post(name: ScreenDidChangeNotification, object: nil)
     }
 
-    func setWallpaper(screenHash: Int, videoName: String, videoUrl: URL) {
+    func setWallpaper(screenHash: Int, videoName: String, videoUrl: URL, cleanPlaylist: Bool) {
         guard let monitor = getMonitor(screenHash: screenHash) else {
             return
         }
         refreshWindow(monitor: monitor, videoName: videoName, videoUrl: videoUrl)
+        if cleanPlaylist {
+            monitor.playlistId = nil
+            UserDefaults.standard.set(nil, forKey: getScreenPlaylistKey(screenHash: screenHash))
+        }
     }
 
     private func refreshWindow(monitor: Monitor, videoName: String, videoUrl: URL) {

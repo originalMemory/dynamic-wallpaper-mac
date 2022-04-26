@@ -38,7 +38,7 @@ struct ContentView: View {
     @State private var screenInfos: [ScreenInfo]
 
     @State private var playlists: [Playlist]
-    @State private var curPlaylistIndex: Int = -1
+    @State private var curPlaylistIndex: Int
 
     @State private var curScreenIndex: Int = 0
     @State private var monitorScale: CGFloat = 0
@@ -55,7 +55,9 @@ struct ContentView: View {
             return info
         }
 
-        playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
+        let playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
+        self.playlists = playlists
+        curPlaylistIndex = playlists.count > 0 ? 0 : -1
 
         _monitorScale = State(initialValue: getMonitorScale())
     }
@@ -214,7 +216,7 @@ struct ContentView: View {
                             guard let video = selectedVideos.first else {
                                 return
                             }
-                            setWallpaper(videoVm: video)
+                            setWallpaper(videoVm: video, cleanPlaylist: true)
                         }
                     }
                     if curShowMode() == .playlist {
@@ -321,17 +323,24 @@ struct ContentView: View {
         var video = videoVms[index]
         videoVms[index] = video.setSelected(value: !video.isSelected)
         if enablePreview {
-            setWallpaper(videoVm: video)
+            setWallpaper(videoVm: video, cleanPlaylist: false)
         }
     }
 
-    private func setWallpaper(videoVm: VideoPreviewView.ViewModel) {
+    private func setWallpaper(videoVm: VideoPreviewView.ViewModel, cleanPlaylist: Bool) {
         guard let path = VideoHelper.share.getFullPath(videoId: videoVm.id, filename: videoVm.file) else { return }
         WallpaperManager.share.setWallpaper(
             screenHash: screenInfos[curScreenIndex].screenHash,
             videoName: videoVm.title,
-            videoUrl: URL(fileURLWithPath: path)
+            videoUrl: URL(fileURLWithPath: path),
+            cleanPlaylist: cleanPlaylist
         )
+        if !cleanPlaylist {
+            return
+        }
+        var info = screenInfos[curScreenIndex]
+        info.playlistName = nil
+        screenInfos[curScreenIndex] = info
     }
 
     private func resetVideoSelectStatus(value: Bool) {
@@ -387,7 +396,8 @@ struct ContentView: View {
         if searchTitle.isEmpty {
             videos = DBManager.share.search(type: .video).map { $0.toVideo() }
         } else {
-            videos = DBManager.share.search(type: .video, filter: Column.title.like(searchTitle)).map { $0.toVideo() }
+            videos = DBManager.share.search(type: .video, filter: Column.title.like("%\(searchTitle)%"))
+                .map { $0.toVideo() }
         }
         videoVms = videos.map {
             VideoPreviewView.ViewModel.from(video: $0)
