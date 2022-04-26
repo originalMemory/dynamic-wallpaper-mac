@@ -157,7 +157,7 @@ class DBManager: NSObject {
     }
 
     func updatePlaylist(id: Int64, item: Playlist) {
-        guard let db = getDB(), let table = getTable(type: .video) else { return }
+        guard let db = getDB(), let table = getTable(type: .playlist) else { return }
         do {
             let update = table.filter(Column.id == id)
             let count = try db.run(update.update(

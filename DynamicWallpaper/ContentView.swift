@@ -414,8 +414,16 @@ struct ContentView: View {
 
     private func addOrDelVideoToPlaylist(isAdd: Bool) {
         var playlist = playlists[curPlaylistIndex]
-        let videoIds = Set(playlist.videoIdList() + videoVms.filter { $0.isSelected }.map { $0.id }).map { String($0) }
-        playlist.videoIds = videoIds.joined(separator: ",")
+        let selectedIds = videoVms.filter { $0.isSelected }.map { $0.id }
+        var videoIds = playlist.videoIdList()
+        if isAdd {
+            videoIds += selectedIds
+            videoIds = Array(Set(videoIds))
+        } else {
+            videoIds.removeAll(where: { id in selectedIds.contains(id) })
+        }
+        playlist.videoIds = videoIds.map { String($0) }.joined(separator: ",")
+        playlists[curPlaylistIndex] = playlist
         DBManager.share.updatePlaylist(id: playlist.playlistId, item: playlist)
         if curShowMode() == .playlist {
             refreshPlaylistVideo()
