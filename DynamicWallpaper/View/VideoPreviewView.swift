@@ -16,7 +16,7 @@ struct VideoPreviewView: View {
         let tags: String?
         let file: String
         let previewImage: NSImage?
-        var isSelected: Bool
+        var isSelected: Bool = false
 
         static func from(video: Video) -> ViewModel {
             let path = VideoHelper.share.getFullPath(videoId: video.videoId, filename: video.preview)
@@ -26,20 +26,7 @@ struct VideoPreviewView: View {
                 desc: video.desc,
                 tags: video.tags,
                 file: video.file,
-                previewImage: path != nil ? NSImage(contentsOfFile: path!) : nil,
-                isSelected: false
-            )
-        }
-
-        func copy(isSelect: Bool) -> ViewModel {
-            ViewModel(
-                id: id,
-                title: title,
-                desc: desc,
-                tags: tags,
-                file: file,
-                previewImage: previewImage,
-                isSelected: isSelect
+                previewImage: path != nil ? NSImage(contentsOfFile: path!) : nil
             )
         }
 
@@ -51,6 +38,7 @@ struct VideoPreviewView: View {
     private let corner = RoundedRectangle(cornerRadius: 10, style: .continuous)
 
     let vm: ViewModel
+    let index: String
     @State var isHover = false
 
     var body: some View {
@@ -63,13 +51,11 @@ struct VideoPreviewView: View {
                     Image("defaultPreview").resizable().scaledToFill()
                 }
             }
-            HStack {
+            VStack {
+                createLine(text: index)
                 Spacer()
-                Text(vm.title)
-                Spacer()
+                createLine(text: vm.title)
             }
-            .frame(height: 30).foregroundColor(Color.white)
-            .background(Color.black.opacity(0.4))
             if isHover {
                 Color.white.opacity(0.3).clipShape(corner)
             }
@@ -83,6 +69,16 @@ struct VideoPreviewView: View {
             isHover = hover
         }
     }
+
+    private func createLine(text: String) -> some View {
+        HStack {
+            Spacer()
+            Text(text)
+            Spacer()
+        }
+        .frame(height: 30).foregroundColor(Color.white)
+        .background(Color.black.opacity(0.4))
+    }
 }
 
 struct VideoPreviewView_Previews: PreviewProvider {
@@ -93,9 +89,8 @@ struct VideoPreviewView_Previews: PreviewProvider {
             desc: nil,
             tags: nil,
             file: "",
-            previewImage: nil,
-            isSelected: false
+            previewImage: nil
         )
-        return VideoPreviewView(vm: model).frame(width: 400, height: 300)
+        return VideoPreviewView(vm: model, index: "1").frame(width: 400, height: 300)
     }
 }

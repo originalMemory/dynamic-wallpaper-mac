@@ -329,7 +329,9 @@ struct ContentView: View {
 
     private func resetVideoSelectStatus() {
         for i in 0..<videoVms.count {
-            videoVms[i] = videoVms[i].copy(isSelect: false)
+            var vm = videoVms[i]
+            vm.isSelected = false
+            videoVms[i] = vm
         }
     }
 

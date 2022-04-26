@@ -19,6 +19,7 @@ struct VideoPreviewGrid: View {
     var body: some View {
         VStack {
             HStack {
+                Text("总数：\(vms.count)")
                 Spacer()
                 Toggle("允许多选", isOn: $enableMulti).toggleStyle(SwitchToggleStyle(tint: .green))
                 Toggle("点击即预览", isOn: $enablePreview).toggleStyle(SwitchToggleStyle(tint: .green))
@@ -26,11 +27,16 @@ struct VideoPreviewGrid: View {
             .padding(EdgeInsets(top: padding, leading: padding, bottom: 0, trailing: padding))
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: padding), count: 3)) {
-                    ForEach(vms, id: \.self) { vm in
+                    let indexLength = String(vms.count).count
+                    ForEach(0..<vms.count, id: \.self) { index in
+                        let vm = vms[index]
                         Button {
                             onClick(vm.id, enableMulti, enablePreview)
                         } label: {
-                            VideoPreviewView(vm: vm).frame(height: 200)
+                            VideoPreviewView(
+                                vm: vm,
+                                index: String(format: "%0\(indexLength)d", arguments: [index + 1])
+                            ).frame(height: 200)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -58,15 +64,14 @@ struct VideoPreviewGrid_Previews: PreviewProvider {
 }
 
 private extension VideoPreviewView.ViewModel {
-    static func mock(id: Int64, title: String, isSelected: Bool = false) -> VideoPreviewView.ViewModel {
+    static func mock(id: Int64, title: String) -> VideoPreviewView.ViewModel {
         VideoPreviewView.ViewModel(
             id: id,
             title: title,
             desc: nil,
             tags: nil,
             file: "",
-            previewImage: nil,
-            isSelected: isSelected
+            previewImage: nil
         )
     }
 }
