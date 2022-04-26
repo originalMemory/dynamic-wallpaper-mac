@@ -45,9 +45,8 @@ struct ContentView: View {
     @State private var selectedVideos: [Video] = []
 
     init() {
-        let videos: [Video] = DBManager.share.queryFromDb(fromTable: Table.video) ?? []
-        videoVms = videos.map { video in
-            VideoPreviewView.ViewModel.from(video: video)
+        videoVms = DBManager.share.search(type: .video).map {
+            VideoPreviewView.ViewModel.from(video: $0.toVideo())
         }
         screenInfos = NSScreen.screens.map { screen in
             var info = ScreenInfo.from(screen: screen)
@@ -56,7 +55,7 @@ struct ContentView: View {
             return info
         }
 
-        playlists = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
+        playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
 
         _monitorScale = State(initialValue: getMonitorScale())
     }
@@ -118,7 +117,7 @@ struct ContentView: View {
                             .showWindow(nil)
                         }
                         Button("修改") {
-                            TextInputWC(text: playlists[curPlaylistIndex].name) { text in
+                            TextInputWC(text: playlists[curPlaylistIndex].title) { text in
                                 updatePlaylistName(id: playlists[curPlaylistIndex].playlistId, name: text)
                             }
                             .showWindow(nil)
@@ -142,7 +141,9 @@ struct ContentView: View {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: VideoImportIndexNotification)) { output in
                     if curShowMode() == .allVideo {
-                        searchVideo()
+                        DispatchQueue.main.async {
+                            searchVideo()
+                        }
                     }
                 }
             }
@@ -155,7 +156,7 @@ struct ContentView: View {
     var playlistPicker: some View {
         Picker("", selection: $curPlaylistIndex) {
             ForEach(0..<playlists.count, id: \.self) { i in
-                Text(playlists[i].name)
+                Text(playlists[i].title)
             }
         }
         .labelsHidden().onChange(of: curPlaylistIndex) { index in
@@ -366,10 +367,12 @@ struct ContentView: View {
     }
 
     private func searchVideo() {
-        let videos: [Video] = DBManager.share.queryFromDb(
-            fromTable: Table.video,
-            where: Video.Properties.title.like("%\(searchTitle)%")
-        ) ?? []
+        let videos: [Video]
+        if searchTitle.isEmpty {
+            videos = DBManager.share.search(type: .video).map { $0.toVideo() }
+        } else {
+            videos = DBManager.share.search(type: .video, filter: Column.title.like(searchTitle)).map { $0.toVideo() }
+        }
         videoVms = videos.map {
             VideoPreviewView.ViewModel.from(video: $0)
         }
@@ -378,29 +381,21 @@ struct ContentView: View {
     // MARK: - 播放列表修改及展示
 
     private func createPlaylist(name: String) {
-        let playlist = Playlist()
-        playlist.name = name
-        DBManager.share.insertToDb(objects: [playlist], intoTable: Table.playlist)
-        playlists = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
+        let playlist = Playlist(playlistId: 0, title: name, videoIds: "")
+        _ = DBManager.share.insertPlaylist(item: playlist)
+        playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
     }
 
     private func updatePlaylistName(id: Int64, name: String) {
-        let playlist = Playlist()
-        playlist.name = name
-        DBManager.share.updateToDb(
-            table: Table.playlist,
-            on: [Playlist.Properties.name],
-            with: playlist,
-            where: Playlist.Properties.playlistId.is(id)
-        )
-        playlists = DBManager.share.queryFromDb(fromTable: Table.playlist) ?? []
+        guard var playlist = DBManager.share.getPlaylist(id: id) else { return }
+        playlist.title = name
+        DBManager.share.updatePlaylist(id: id, item: playlist)
+        playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
     }
 
     private func delPlaylist() {
-        DBManager.share.deleteFromDb(
-            fromTable: Table.playlist,
-            where: Playlist.Properties.playlistId.is(playlists[curPlaylistIndex].playlistId)
-        )
+        guard let playlistId = playlists.safeValue(index: curPlaylistIndex)?.playlistId else { return }
+        DBManager.share.delete(type: .playlist, id: playlistId)
         playlists.remove(at: curPlaylistIndex)
         if curPlaylistIndex >= playlists.count {
             curPlaylistIndex -= 1
@@ -408,29 +403,20 @@ struct ContentView: View {
     }
 
     private func refreshPlaylistVideo() {
-        guard let videoIds = playlists.safeValue(index: curPlaylistIndex)?.videoIdList(),
-              let videos: [Video] = DBManager.share.queryFromDb(
-                  fromTable: Table.video,
-                  where: Video.Properties.videoId.in(videoIds)
-              )
-        else {
-            return
-        }
-        videoVms = videos.map { VideoPreviewView.ViewModel.from(video: $0) }
+        guard let videoIds = playlists.safeValue(index: curPlaylistIndex)?.videoIdList() else { return }
+        videoVms = DBManager.share.search(
+            type: .video,
+            filter: videoIds.contains(Column.id)
+        ).map { VideoPreviewView.ViewModel.from(video: $0.toVideo()) }
     }
 
     // MARK: - 播放列表包含的视频增删
 
     private func addOrDelVideoToPlaylist(isAdd: Bool) {
-        let playlist = playlists[curPlaylistIndex]
+        var playlist = playlists[curPlaylistIndex]
         let videoIds = Set(playlist.videoIdList() + videoVms.filter { $0.isSelected }.map { $0.id }).map { String($0) }
         playlist.videoIds = videoIds.joined(separator: ",")
-        DBManager.share.updateToDb(
-            table: Table.playlist,
-            on: [Playlist.Properties.videoIds],
-            with: playlist,
-            where: Playlist.Properties.playlistId.is(playlist.playlistId)
-        )
+        DBManager.share.updatePlaylist(id: playlist.playlistId, item: playlist)
         if curShowMode() == .playlist {
             refreshPlaylistVideo()
         } else {

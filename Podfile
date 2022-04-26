@@ -6,7 +6,7 @@ target 'DynamicWallpaper' do
   use_frameworks!
 
   # Pods for DynamicWallpaper
-  pod 'WCDB.swift', '~> 1.0'
+  pod 'SQLite.swift'
 
   target 'DynamicWallpaperTests' do
     inherit! :search_paths

@@ -3,131 +3,221 @@
 //
 
 import Foundation
-import WCDBSwift
+import SQLite
 
-struct HMDataBasePath {
-    let dbPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).last! + "/DB.db"
+enum TableType: String, CaseIterable {
+    case video
+    case playlist
 }
 
-enum Table: String, CaseIterable {
-    case video = "videoTable"
-    case playlist = "playlistTable"
+enum Column {
+    static let id = Expression<Int64>("id")
+    static let createTime = Expression<Date>("createTime")
+    static let updateTime = Expression<Date>("updateTime")
+
+    static let title = Expression<String>("title")
+    static let desc = Expression<String?>("description")
+    static let tags = Expression<String?>("tags")
+    static let preview = Expression<String?>("preview")
+    static let file = Expression<String>("file")
+    static let md5 = Expression<String>("md5")
+    static let wallpaperEngineId = Expression<String?>("wallpaperEngineId")
+    static let contentrating = Expression<String?>("contentrating")
+
+    static let videoIds = Expression<String>("videoIds")
 }
 
 class DBManager: NSObject {
     static let share = DBManager()
+    private var db: Connection?
+    private var tableMap: [TableType: Table] = [:]
 
-    let dataBasePath = URL(fileURLWithPath: HMDataBasePath().dbPath)
-    var dataBase: Database?
-
-    override private init() {
-        super.init()
-        dataBase = createDb()
-    }
-
-    func setupTables() {
-        createTable(table: Table.video, of: Video.self)
-        createTable(table: Table.playlist, of: Playlist.self)
-    }
-
-    /// 创建db
-    private func createDb() -> Database {
-        debugPrint("数据库路径==\(dataBasePath.absoluteString)")
-        return Database(withFileURL: dataBasePath)
-    }
-
-    /// 创建表
-    func createTable<T: TableDecodable>(table: Table, of type: T.Type) -> Void {
+    func getDB() -> Connection? {
         do {
-            try dataBase?.create(table: table.rawValue, of: type)
+            if db == nil {
+                let path = NSSearchPathForDirectoriesInDomains(
+                    .documentDirectory, .userDomainMask, true
+                ).first!
+                db = try Connection("\(path)/db.sqlite3")
+                db?.busyTimeout = 5.0
+            }
+            return db
         } catch {
-            debugPrint("create table error \(error.localizedDescription)")
+            debugPrint("创建数据库出错：\(error)")
+            return nil
         }
     }
 
-    /// 插入
-    func insertToDb<T: TableEncodable>(objects: [T], intoTable table: Table) -> Void {
+    func getTable(type: TableType) -> Table? {
+        if let table = tableMap[type] {
+            return table
+        }
         do {
-            try dataBase?.insert(objects: objects, intoTable: table.rawValue)
+            let table = Table(type.rawValue)
+            switch type {
+            case .video:
+                try getDB()?.run(
+                    table.create(ifNotExists: true) { builder in
+                        builder.column(Column.id, primaryKey: true)
+                        builder.column(Column.title)
+                        builder.column(Column.desc)
+                        builder.column(Column.tags)
+                        builder.column(Column.preview)
+                        builder.column(Column.file)
+                        builder.column(Column.md5)
+                        builder.column(Column.wallpaperEngineId)
+                        builder.column(Column.contentrating)
+                        builder.column(Column.createTime, defaultValue: Date.now)
+                        builder.column(Column.updateTime, defaultValue: Date.now)
+                    }
+                )
+            case .playlist:
+                try getDB()?.run(
+                    table.create(ifNotExists: true) { builder in
+                        builder.column(Column.id, primaryKey: true)
+                        builder.column(Column.title)
+                        builder.column(Column.videoIds)
+                        builder.column(Column.createTime, defaultValue: Date.now)
+                        builder.column(Column.updateTime, defaultValue: Date.now)
+                    }
+                )
+            }
+            tableMap[type] = table
+            return table
         } catch {
-            debugPrint(" insert obj error \(error.localizedDescription)")
+            debugPrint("获取表出错：\(error)")
+            return nil
         }
     }
 
-    /// 修改
-    func updateToDb<T: TableEncodable>(
-        table: Table,
-        on properties: [PropertyConvertible],
-        with object: T,
-        where condition: Condition? = nil
-    ) -> Void {
+    func insertVideo(item: Video) -> Int64? {
+        guard let table = getTable(type: .video) else { return nil }
+        let insert = table.insert(
+            Column.title <- item.title,
+            Column.desc <- item.desc,
+            Column.tags <- item.tags,
+            Column.preview <- item.preview,
+            Column.file <- item.file,
+            Column.md5 <- item.md5,
+            Column.wallpaperEngineId <- item.wallpaperEngineId,
+            Column.contentrating <- item.contentrating
+        )
+        return runInsert(insert)
+    }
+
+    func insertPlaylist(item: Playlist) -> Int64? {
+        guard let table = getTable(type: .playlist) else { return nil }
+        let insert = table.insert(
+            Column.title <- item.title,
+            Column.videoIds <- item.videoIds
+        )
+        return runInsert(insert)
+    }
+
+    private func runInsert(_ insert: Insert) -> Int64? {
         do {
-            try dataBase?.update(table: table.rawValue, on: properties, with: object, where: condition)
+            return try getDB()?.run(insert)
         } catch {
-            debugPrint(" update obj error \(error.localizedDescription)")
+            debugPrint("插入出错：\(error)")
+            return nil
         }
     }
 
-    /// 删除
-    func deleteFromDb(fromTable: Table, where condition: Condition? = nil) {
+    // 根据条件删除
+    func delete(type: TableType, id: Int64) {
+        guard let query = getTable(type: type)?.filter(rowid == id) else { return }
         do {
-            try dataBase?.delete(fromTable: fromTable.rawValue, where: condition)
+            let count = try getDB()?.run(query.delete())
+            debugPrint("删除的条数为：\(count ?? 0)")
         } catch {
-            debugPrint("delete error \(error.localizedDescription)")
+            debugPrint("删除出错：\(error)")
         }
     }
 
-    /// 查询
-    func queryFromDb<T: TableDecodable>(
-        fromTable: Table,
-        where condition: Condition? = nil,
-        orderBy orderList: [OrderBy]? = nil,
-        limit: Limit? = nil,
-        offset: Offset? = nil
-    ) -> [T]? {
+    // 改
+    func updateVideo(id: Int64, item: Video) {
+        guard let db = getDB(), let table = getTable(type: .video) else { return }
         do {
-            let allObjects: [T] = try (dataBase?.getObjects(
-                fromTable: fromTable.rawValue,
-                where: condition,
-                orderBy: orderList,
-                limit: limit,
-                offset: offset
-            ))!
-            return allObjects
+            let update = table.filter(rowid == id)
+            let count = try db.run(update.update(
+                Column.title <- item.title,
+                Column.desc <- item.desc,
+                Column.tags <- item.tags,
+                Column.preview <- item.preview,
+                Column.file <- item.file,
+                Column.md5 <- item.md5,
+                Column.wallpaperEngineId <- item.wallpaperEngineId,
+                Column.contentrating <- item.contentrating,
+                Column.updateTime <- Date.now
+            ))
+            debugPrint("更新的条数为：\(count)")
         } catch {
-            debugPrint("no data find \(error.localizedDescription)")
+            debugPrint("更新出错：\(error)")
         }
-        return nil
     }
 
-    /// 是否存在符合条件的元素
-    func exist<T: TableCodable>(fromTable: Table, classType: T.Type, where condition: Condition) -> Bool {
+    func updatePlaylist(id: Int64, item: Playlist) {
+        guard let db = getDB(), let table = getTable(type: .video) else { return }
         do {
-            let obj: T? = try dataBase?.getObject(fromTable: fromTable.rawValue, where: condition)
-            return obj != nil
+            let update = table.filter(Column.id == id)
+            let count = try db.run(update.update(
+                Column.title <- item.title,
+                Column.videoIds <- item.videoIds,
+                Column.updateTime <- Date.now
+            ))
+            debugPrint("更新的条数为：\(count)")
         } catch {
-            debugPrint("no data find \(error.localizedDescription)")
+            debugPrint("更新出错：\(error)")
+        }
+    }
+
+    func getPlaylist(id: Int64) -> Playlist? {
+        guard let row = search(type: .playlist, filter: rowid == id, limit: 1).first else { return nil }
+        return row.toPlaylist()
+    }
+
+    func search(
+        type: TableType,
+        select: [Expressible]? = nil,
+        filter: Expression<Bool>? = nil,
+        order: [Expressible] = [rowid.asc],
+        limit: Int? = nil,
+        offset: Int? = nil
+    ) -> [Row] {
+        guard var query = getTable(type: type)?.order(order) else { return [] }
+        if let s = select {
+            query = query.select(s)
+        }
+        if let f = filter {
+            query = query.filter(f)
+        }
+        if let l = limit {
+            if let o = offset {
+                query = query.limit(l, offset: o)
+            } else {
+                query = query.limit(l)
+            }
+        }
+        do {
+            if let result = try getDB()?.prepare(query) {
+                return Array(result)
+            } else {
+                return []
+            }
+        } catch {
+            debugPrint("查找出错：\(error)")
+            return []
+        }
+    }
+
+    func exist(type: TableType, filter: Expression<Bool>) -> Bool {
+        guard let db = getDB(), let query = getTable(type: type)?.filter(filter).select(rowid) else { return false }
+        do {
+            let res = try db.prepare(query)
+            return Array(res).count >= 1
+        } catch {
+            debugPrint("查找出错：\(error)")
             return false
-        }
-    }
-
-    /// 删除数据表
-    func dropTable(table: Table) {
-        do {
-            try dataBase?.drop(table: table.rawValue)
-        } catch {
-            debugPrint("drop table error \(error)")
-        }
-    }
-
-    ///  删除所有与该数据库相关的文件
-    func removeDbFile() {
-        do {
-            try dataBase?.close(onClosed: {
-                try dataBase?.removeFiles()
-            })
-        } catch {
-            debugPrint("not close db \(error)")
         }
     }
 }

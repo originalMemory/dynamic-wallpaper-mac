@@ -176,28 +176,19 @@ class WallpaperManager {
         }
     }
 
-    private func getPlaylist(playlistId: Int64) -> Playlist? {
-        guard let playlists: [Playlist] = DBManager.share.queryFromDb(
-            fromTable: Table.playlist,
-            where: Video.Properties.videoId.is(playlistId),
-            limit: 1
-        ) else { return nil }
-        return playlists.first
-    }
-
     private func getVideos(playlistId: Int64) -> [Video]? {
-        guard let playlist = getPlaylist(playlistId: playlistId) else { return nil }
-        return DBManager.share.queryFromDb(
-            fromTable: Table.video,
-            where: Video.Properties.videoId.in(playlist.videoIdList())
-        )
+        guard let playlist = DBManager.share.getPlaylist(id: playlistId) else { return nil }
+        return DBManager.share.search(
+            type: .video,
+            filter: playlist.videoIdList().contains(Column.id)
+        ).map { $0.toVideo() }
     }
 
     /// 这两个方法是用于设置页面初始化信息
     func getScreenPlaylistName(screenHash: Int) -> String? {
         guard let playlistId = UserDefaults.standard.string(forKey: getScreenPlaylistKey(screenHash: screenHash)),
-              let playlist = getPlaylist(playlistId: Int64(playlistId) ?? -1) else { return nil }
-        return playlist.name
+              let playlist = DBManager.share.getPlaylist(id: Int64(playlistId) ?? -1) else { return nil }
+        return playlist.title
     }
 
     func getScreenPlayingVideoName(screenHash: Int) -> String? {

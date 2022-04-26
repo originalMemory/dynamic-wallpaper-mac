@@ -33,6 +33,7 @@ struct ImportProgressView: View {
                 curIndex = index + 1
                 value = CGFloat(curIndex) / CGFloat(paths.count)
                 if curIndex == paths.count {
+                    print("关闭当前页面")
                     NSApplication.shared.keyWindow?.close()
                 }
             }

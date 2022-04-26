@@ -3,6 +3,8 @@
 //
 
 import Foundation
+import SQLite
+import CommonCrypto
 
 let VideoImportIndexNotification: Notification.Name = .init(rawValue: "VideoImportIndexNotification")
 
@@ -28,13 +30,21 @@ class VideoHelper {
             for i in 0..<filePaths.count {
                 let path = filePaths[i]
                 do {
+                    let md5 = self.md5File(url: URL(fileURLWithPath: path)) ?? ""
+                    if DBManager.share.exist(
+                        type: .video,
+                        filter: Column.md5 == md5
+                    ) {
+                        debugPrint("文件已存在 \(path)")
+                        self.postProgressUpdate(index: i)
+                        continue
+                    }
+
                     var items = path.components(separatedBy: "/")
                     let filename = items.last!
                     items.removeLast()
                     let curDirPath = items.joined(separator: "/")
-                    let model = Video()
-                    model.title = filename.removeExtension()
-                    model.file = filename
+                    let title = filename.removeExtension()
 
                     // Wallpaper Engine 解析
                     let projectJsonPath = curDirPath.appendPathComponent("project.json")
@@ -45,49 +55,45 @@ class VideoHelper {
                            options: .allowFragments
                        ) as? [String: Any]
                     {
-                        model.contentrating = jsonObj["contentrating"] as? String
-                        if let wallpaperEngineId = jsonObj["workshopid"] as? String {
-                            model.wallpaperEngineId = Int64(wallpaperEngineId)
-                        }
-                        model.title = (jsonObj["title"] as? String) ?? ""
-                        model.desc = jsonObj["description"] as? String
-                        model.tags = (jsonObj["tags"] as? [String] ?? []).joined(separator: ",")
-                        if let previewName = jsonObj["preview"] as? String,
-                           FileManager.default.fileExists(atPath: curDirPath.appendPathComponent(previewName))
-                        {
-                            model.preview = previewName
-                        }
-                        if DBManager.share.exist(
-                            fromTable: Table.video,
-                            classType: Video.self,
-                            where: Video.Properties.title.like(model.title)
-                        ) {
-                            debugPrint("文件已存在 \(filename) \(model.title)")
-                            self.postProgressUpdate(index: i)
-                            continue
-                        }
-                        DBManager.share.insertToDb(objects: [model], intoTable: Table.video)
-                        let saveDir = cacheDir.appendPathComponent("\(model.lastInsertedRowID)")
+                        let title: String = (jsonObj["title"] as? String) ?? ""
+                        let desc: String? = jsonObj["description"] as? String
+                        let model = Video(
+                            videoId: 0,
+                            title: title,
+                            desc: desc,
+                            tags: (jsonObj["tags"] as? [String] ?? []).joined(separator: ","),
+                            preview: jsonObj["preview"] as? String,
+                            file: filename,
+                            md5: md5,
+                            wallpaperEngineId: jsonObj["workshopid"] as? String,
+                            contentrating: jsonObj["workshopid"] as? String
+                        )
+                        guard let rowId = DBManager.share.insertVideo(item: model) else { continue }
+                        let saveDir = cacheDir.appendPathComponent(String(rowId))
                         self.ensureDir(path: saveDir)
                         try FileManager.default.copyItem(atPath: path, toPath: saveDir.appendPathComponent(filename))
-                        if let previewName = model.preview {
+                        if let previewName = model.preview,
+                           FileManager.default.fileExists(atPath: curDirPath.appendPathComponent(previewName))
+                        {
                             try FileManager.default.copyItem(
                                 atPath: curDirPath.appendPathComponent(previewName),
                                 toPath: saveDir.appendPathComponent(previewName)
                             )
                         }
                     } else {
-                        if DBManager.share.exist(
-                            fromTable: Table.video,
-                            classType: Video.self,
-                            where: Video.Properties.file.is(filename)
-                        ) {
-                            debugPrint("文件已存在 \(filename)")
-                            self.postProgressUpdate(index: i)
-                            continue
-                        }
-                        DBManager.share.insertToDb(objects: [model], intoTable: Table.video)
-                        let saveDir = cacheDir.appendPathComponent("\(model.lastInsertedRowID)")
+                        let model = Video(
+                            videoId: 0,
+                            title: title,
+                            desc: "",
+                            tags: "",
+                            preview: "",
+                            file: filename,
+                            md5: md5,
+                            wallpaperEngineId: nil,
+                            contentrating: nil
+                        )
+                        guard let rowId = DBManager.share.insertVideo(item: model) else { continue }
+                        let saveDir = cacheDir.appendPathComponent(String(rowId))
                         self.ensureDir(path: saveDir)
                         try FileManager.default.copyItem(atPath: path, toPath: saveDir.appendPathComponent(filename))
                     }
@@ -127,6 +133,41 @@ class VideoHelper {
             try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
         } catch {
             debugPrint("创建文件夹失败 - \(error)")
+        }
+    }
+
+    private func md5File(url: URL) -> String? {
+        let bufferSize = 1024 * 1024
+
+        do {
+            // 打开文件
+            let file = try FileHandle(forReadingFrom: url)
+            defer {
+                file.closeFile()
+            }
+
+            // 初始化内容
+            var context = CC_MD5_CTX()
+            CC_MD5_Init(&context)
+
+            // 读取文件信息
+            while case let data = file.readData(ofLength: bufferSize), data.count > 0 {
+                data.withUnsafeBytes {
+                    _ = CC_MD5_Update(&context, $0, CC_LONG(data.count))
+                }
+            }
+
+            // 计算Md5摘要
+            var digest = Data(count: Int(CC_MD5_DIGEST_LENGTH))
+            digest.withUnsafeMutableBytes {
+                _ = CC_MD5_Final($0, &context)
+            }
+
+            return digest.map { String(format: "%02hhx", $0) }.joined()
+
+        } catch {
+            print("Cannot open file:", error.localizedDescription)
+            return nil
         }
     }
 }
