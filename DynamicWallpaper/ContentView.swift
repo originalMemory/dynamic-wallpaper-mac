@@ -97,46 +97,7 @@ struct ContentView: View {
                 }
                 .padding(.top, 10).frame(width: 250)
                 Divider().padding(.horizontal, Metric.horizontalMargin)
-                HStack {
-                    switch MiddleShowType.allCases[showModeIndex] {
-                    case .allVideo:
-                        Button("导入视频") {
-                            selectImportVideoPaths()
-                        }
-                        TextField("输入搜索条件", text: $searchTitle).frame(width: 100).onSubmit {
-                            searchVideo()
-                        }
-                        Button("搜索") {
-                            searchVideo()
-                        }
-                        Spacer()
-                    case .playlist:
-                        playlistPicker.frame(width: 150)
-                        Button("创建") {
-                            TextInputWC { text in
-                                createPlaylist(name: text)
-                            }
-                            .showWindow(nil)
-                        }
-                        Button("修改") {
-                            TextInputWC(text: playlists[curPlaylistIndex].title) { text in
-                                updatePlaylistName(id: playlists[curPlaylistIndex].playlistId, name: text)
-                            }
-                            .showWindow(nil)
-                        }
-                        .disabled(curPlaylistIndex < 0)
-                        Button("删除") {
-                            delPlaylist()
-                        }
-                        .disabled(curPlaylistIndex < 0)
-                        Spacer()
-                        Button("播放设置") {
-                            PlayConfigView().showInNewWindow(title: "播放设置")
-                        }
-                        Spacer()
-                    }
-                }
-                .padding(.leading, Metric.horizontalMargin)
+                toolsView
                 Divider().padding(.horizontal, Metric.horizontalMargin)
                 VideoPreviewGrid(vms: $videoVms) { id, enableMulti, enablePreview in
                     onVideoPreviewClick(id: id, enableMulti: enableMulti, enablePreview: enablePreview)
@@ -158,6 +119,51 @@ struct ContentView: View {
         .frame(width: 1100, height: 850, alignment: .center)
     }
 
+    /// 视频和播放列表操作功能区
+    var toolsView: some View {
+        HStack {
+            switch MiddleShowType.allCases[showModeIndex] {
+            case .allVideo:
+                Button("导入视频") {
+                    selectImportVideoPaths()
+                }
+                TextField("输入搜索条件", text: $searchTitle).frame(width: 100).onSubmit {
+                    searchVideo()
+                }
+                Button("搜索") {
+                    searchVideo()
+                }
+                Spacer()
+            case .playlist:
+                playlistPicker.frame(width: 150)
+                Button("创建") {
+                    TextInputWC { text in
+                        createPlaylist(name: text)
+                    }
+                    .showWindow(nil)
+                }
+                Button("修改") {
+                    TextInputWC(text: playlists[curPlaylistIndex].title) { text in
+                        updatePlaylistName(id: playlists[curPlaylistIndex].playlistId, name: text)
+                    }
+                    .showWindow(nil)
+                }
+                .disabled(curPlaylistIndex < 0)
+                Button("删除") {
+                    delPlaylist()
+                }
+                .disabled(curPlaylistIndex < 0)
+                Spacer()
+                Button("播放设置") {
+                    PlayConfigView().showInNewWindow(title: "播放设置")
+                }
+                Spacer()
+            }
+        }
+        .padding(.leading, Metric.horizontalMargin)
+        .frame(height: 40)
+    }
+
     var playlistPicker: some View {
         Picker("", selection: $curPlaylistIndex) {
             ForEach(0..<playlists.count, id: \.self) { i in
@@ -176,78 +182,119 @@ struct ContentView: View {
         VStack {
             Divider()
             Text("屏幕信息")
-            ZStack(alignment: .leading) {
-                Color.gray
-                ZStack(alignment: .bottomLeading) {
-                    ForEach(0..<screenInfos.count, id: \.self) { i in
-                        let info: ScreenInfo = screenInfos[i]
-                        ZStack(alignment: .topLeading) {
-                            Color.green
-                            Text(info.name).font(.system(size: 12)).padding(5)
-                        }
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .stroke(curScreenIndex == i ? Color.blue : Color.white)
-                        )
-                        .padding(.all, 2)
-                        .frame(
-                            width: info.size.width * monitorScale,
-                            height: info.size.height * monitorScale
-                        )
-                        .offset(x: info.origin.x * monitorScale, y: -info.origin.y * monitorScale)
-                        .onTapGesture {
-                            curScreenIndex = i
-                        }
-                    }
-                }
-                .offset(x: 10, y: 0)
-            }
-            .frame(height: Metric.rightWidth * 0.7)
-
-            let selectedVideos = videoVms.filter { model in model.isSelected }
+            screenOverview
             if curScreenIndex >= 0 {
                 Text("选中的显示器").padding(.top, 10)
-                VStack(alignment: .center, spacing: 10) {
-                    var info = screenInfos[curScreenIndex]
-                    Text(info.name)
-                    Text("\(Int(info.size.width))*\(Int(info.size.height))")
-                    if curShowMode() == .allVideo {
-                        Button("设置选中的壁纸") {
-                            guard let video = selectedVideos.first else {
-                                return
-                            }
-                            setWallpaper(videoVm: video, cleanPlaylist: true)
-                        }
-                    }
-                    if curShowMode() == .playlist {
-                        Button("设置当前播放列表") {
-                            if let playlist = playlists.safeValue(index: curPlaylistIndex) {
-                                info.playlistName = playlist.title
-                                screenInfos[curScreenIndex] = info
-                                WallpaperManager.share.setPlaylistToMonitor(
-                                    playlistId: playlist.playlistId,
-                                    screenHash: info.screenHash
-                                )
-                            }
-                        }
-                    }
-                    Text("当前壁纸：\n\(info.videoName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
-                    Text("当前播放列表: \n\(info.playlistName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: VideoDidChangeNotification)) { output in
-                    guard let userInfo = output.userInfo else { return }
-                    for (key, value) in userInfo {
-                        guard let screenHash = key as? Int,
-                              let title = value as? String,
-                              let index = screenInfos.firstIndex(where: { info in info.screenHash == screenHash })
-                        else { continue }
-                        screenInfos[index].videoName = title
-                    }
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity)
-                .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
+                screenDetailView
             }
+            videoDetailView
+            Spacer()
+            if curShowMode() == .allVideo {
+                Text("播放列表")
+                VStack {
+                    playlistPicker
+                    HStack {
+                        Button("添加") {
+                            addOrDelVideoToPlaylist(isAdd: true)
+                        }
+                        Button("删除") {
+                            addOrDelVideoToPlaylist(isAdd: false)
+                        }
+                    }
+                    .disabled(curPlaylistIndex < 0)
+                }
+                .frame(maxWidth: .infinity)
+                .padding().overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
+            }
+        }
+        .frame(width: 200)
+        .onReceive(NotificationCenter.default.publisher(for: ScreenDidChangeNotification)) { output in
+            monitorScale = getMonitorScale()
+            screenInfos = NSScreen.screens.map {
+                ScreenInfo.from(screen: $0)
+            }
+        }
+    }
+
+    /// 屏幕布局
+    var screenOverview: some View {
+        ZStack(alignment: .leading) {
+            Color.gray
+            ZStack(alignment: .bottomLeading) {
+                ForEach(0..<screenInfos.count, id: \.self) { i in
+                    let info: ScreenInfo = screenInfos[i]
+                    ZStack(alignment: .topLeading) {
+                        Color.green
+                        Text(info.name).font(.system(size: 12)).padding(5)
+                    }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .stroke(curScreenIndex == i ? Color.blue : Color.white)
+                    )
+                    .padding(.all, 2)
+                    .frame(
+                        width: info.size.width * monitorScale,
+                        height: info.size.height * monitorScale
+                    )
+                    .offset(x: info.origin.x * monitorScale, y: -info.origin.y * monitorScale)
+                    .onTapGesture {
+                        curScreenIndex = i
+                    }
+                }
+            }
+            .offset(x: 10, y: 0)
+        }
+        .frame(height: Metric.rightWidth * 0.7)
+    }
+
+    /// 屏幕具体状态
+    var screenDetailView: some View {
+        VStack(alignment: .center, spacing: 10) {
+            var info = screenInfos[curScreenIndex]
+            Text(info.name)
+            Text("\(Int(info.size.width))*\(Int(info.size.height))")
+            if curShowMode() == .allVideo {
+                Button("设置选中的壁纸") {
+                    guard let video = selectedVideos.first else {
+                        return
+                    }
+                    setWallpaper(path: video.fullFilePath(), title: video.title, cleanPlaylist: true)
+                }
+            }
+            if curShowMode() == .playlist {
+                Button("设置当前播放列表") {
+                    if let playlist = playlists.safeValue(index: curPlaylistIndex) {
+                        info.playlistName = playlist.title
+                        screenInfos[curScreenIndex] = info
+                        WallpaperManager.share.setPlaylistToMonitor(
+                            playlistId: playlist.playlistId,
+                            screenHash: info.screenHash
+                        )
+                    }
+                }
+            }
+            Text("当前壁纸：\n\(info.videoName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
+            Text("当前播放列表: \n\(info.playlistName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: VideoDidChangeNotification)) { output in
+            guard let userInfo = output.userInfo else { return }
+            for (key, value) in userInfo {
+                guard let screenHash = key as? Int,
+                      let title = value as? String,
+                      let index = screenInfos.firstIndex(where: { info in info.screenHash == screenHash })
+                else { continue }
+                screenInfos[index].videoName = title
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity)
+        .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
+    }
+
+    /// 显示器具体状态
+    var videoDetailView: some View {
+        VStack {
+            let selectedVideos = videoVms.filter { model in model.isSelected }
             if !selectedVideos.isEmpty {
                 Text("选中的壁纸")
                 VStack {
@@ -289,34 +336,10 @@ struct ContentView: View {
                 .padding(10)
                 .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
             }
-
-            Spacer()
-            if curShowMode() == .allVideo {
-                Text("播放列表")
-                VStack {
-                    playlistPicker
-                    HStack {
-                        Button("添加") {
-                            addOrDelVideoToPlaylist(isAdd: true)
-                        }
-                        Button("删除") {
-                            addOrDelVideoToPlaylist(isAdd: false)
-                        }
-                    }
-                    .disabled(curPlaylistIndex < 0)
-                }
-                .frame(maxWidth: .infinity)
-                .padding().overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
-            }
-        }
-        .frame(width: 200)
-        .onReceive(NotificationCenter.default.publisher(for: ScreenDidChangeNotification)) { output in
-            monitorScale = getMonitorScale()
-            screenInfos = NSScreen.screens.map {
-                ScreenInfo.from(screen: $0)
-            }
         }
     }
+
+    // MARK: - 视频管理
 
     private func onVideoPreviewClick(id: Int64, enableMulti: Bool, enablePreview: Bool) {
         if !enableMulti {
@@ -326,15 +349,19 @@ struct ContentView: View {
         var video = videoVms[index]
         videoVms[index] = video.setSelected(value: !video.isSelected)
         if enablePreview {
-            setWallpaper(videoVm: video, cleanPlaylist: false)
+            setWallpaper(
+                path: VideoHelper.share.getFullPath(videoId: video.id, filename: video.file),
+                title: video.title,
+                cleanPlaylist: false
+            )
         }
     }
 
-    private func setWallpaper(videoVm: VideoPreviewView.ViewModel, cleanPlaylist: Bool) {
-        guard let path = VideoHelper.share.getFullPath(videoId: videoVm.id, filename: videoVm.file) else { return }
+    private func setWallpaper(path: String?, title: String, cleanPlaylist: Bool) {
+        guard let path = path else { return }
         WallpaperManager.share.setWallpaper(
             screenHash: screenInfos[curScreenIndex].screenHash,
-            videoName: videoVm.title,
+            videoName: title,
             videoUrl: URL(fileURLWithPath: path),
             cleanPlaylist: cleanPlaylist
         )
@@ -351,8 +378,6 @@ struct ContentView: View {
             videoVms[i] = videoVms[i].setSelected(value: value)
         }
     }
-
-    // MARK: - 点击事件
 
     private func selectImportVideoPaths() {
         let dialog = NSOpenPanel()
@@ -426,7 +451,7 @@ struct ContentView: View {
         videoVms.removeAll { vm in videoIds.contains(vm.id) }
     }
 
-    // MARK: - 播放列表修改及展示
+    // MARK: - 播放列表管理
 
     private func createPlaylist(name: String) {
         let playlist = Playlist(playlistId: 0, title: name, videoIds: "")
