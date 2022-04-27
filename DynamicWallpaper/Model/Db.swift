@@ -171,8 +171,13 @@ class DBManager: NSObject {
         }
     }
 
+    func getVideo(id: Int64) -> Video? {
+        guard let row = search(type: .video, filter: Column.id == id, limit: 1).first else { return nil }
+        return row.toVideo()
+    }
+
     func getPlaylist(id: Int64) -> Playlist? {
-        guard let row = search(type: .playlist, filter: rowid == id, limit: 1).first else { return nil }
+        guard let row = search(type: .playlist, filter: Column.id == id, limit: 1).first else { return nil }
         return row.toPlaylist()
     }
 

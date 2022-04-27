@@ -7,9 +7,9 @@ import SQLite
 
 struct Video {
     let videoId: Int64
-    let title: String
-    let desc: String?
-    let tags: String?
+    var title: String
+    var desc: String?
+    var tags: String?
     let preview: String?
     let file: String
     let md5: String

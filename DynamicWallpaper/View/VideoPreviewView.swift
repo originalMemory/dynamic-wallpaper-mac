@@ -25,7 +25,7 @@ struct VideoPreviewView: View {
                 title: video.title,
                 desc: video.desc,
                 tags: video.tags,
-                file: video.file,
+                file: video.fullFilePath() ?? "",
                 previewImage: path != nil ? NSImage(contentsOfFile: path!) : nil
             )
         }

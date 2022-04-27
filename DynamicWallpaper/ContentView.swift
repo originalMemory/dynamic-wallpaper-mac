@@ -31,6 +31,13 @@ struct ContentView: View {
         static let horizontalMargin: CGFloat = 8
     }
 
+    enum VideoDetailHoverStatus {
+        case none
+        case title
+        case desc
+        case tags
+    }
+
     @State private var showModeIndex = 0
 
     @State private var searchTitle: String = ""
@@ -42,11 +49,15 @@ struct ContentView: View {
 
     @State private var curScreenIndex: Int = 0
     @State private var monitorScale: CGFloat = 0
-    @State private var selectedVideos: [Video] = []
+    @State private var videoDetailHoverType: VideoDetailHoverStatus = .none
 
     init() {
         videoVms = DBManager.share.search(type: .video).map {
-            VideoPreviewView.ViewModel.from(video: $0.toVideo())
+            var vm = VideoPreviewView.ViewModel.from(video: $0.toVideo())
+            if vm.id == 1 {
+                vm.isSelected = true
+            }
+            return vm
         }
         screenInfos = NSScreen.screens.map { screen in
             var info = ScreenInfo.from(screen: screen)
@@ -255,10 +266,10 @@ struct ContentView: View {
             Text("\(Int(info.size.width))*\(Int(info.size.height))")
             if curShowMode() == .allVideo {
                 Button("设置选中的壁纸") {
-                    guard let video = selectedVideos.first else {
+                    guard let video = videoVms.first(where: { $0.isSelected }) else {
                         return
                     }
-                    setWallpaper(path: video.fullFilePath(), title: video.title, cleanPlaylist: true)
+                    setWallpaper(path: video.file, title: video.title, cleanPlaylist: true)
                 }
             }
             if curShowMode() == .playlist {
@@ -291,7 +302,7 @@ struct ContentView: View {
         .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
     }
 
-    /// 显示器具体状态
+    /// 视频具体状态
     var videoDetailView: some View {
         VStack {
             let selectedVideos = videoVms.filter { model in model.isSelected }
@@ -305,25 +316,13 @@ struct ContentView: View {
                             }
                         } else {
                             let video = selectedVideos[0]
-                            HStack {
-                                Spacer()
-                                Text(video.title)
-                                Spacer()
-                            }
+                            getVideoDetailEditableText(vm: video, alignment: .center, showHoverStatus: .title)
                             Divider()
-                            HStack {
-                                Spacer()
-                                Text("描述").bold()
-                                Spacer()
-                            }
-                            Text(video.desc ?? "").frame(maxWidth: .infinity, alignment: .leading)
+                            Text("描述").bold().frame(maxWidth: .infinity)
+                            getVideoDetailEditableText(vm: video, alignment: .leading, showHoverStatus: .desc)
                             Divider()
-                            HStack {
-                                Spacer()
-                                Text("标签").bold()
-                                Spacer()
-                            }
-                            Text(video.tags ?? "").frame(maxWidth: .infinity, alignment: .leading)
+                            Text("标签").bold().frame(maxWidth: .infinity)
+                            getVideoDetailEditableText(vm: video, alignment: .leading, showHoverStatus: .tags)
                         }
                     }
                     HStack {
@@ -333,9 +332,66 @@ struct ContentView: View {
                         }
                     }
                 }
-                .padding(10)
+                .padding(5)
                 .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
             }
+        }
+    }
+
+    private func getVideoDetailEditableText(
+        vm: VideoPreviewView.ViewModel,
+        alignment: Alignment,
+        showHoverStatus: VideoDetailHoverStatus
+    ) -> some View {
+        let text: String?
+        switch showHoverStatus {
+        case .desc:
+            text = vm.desc
+        case .title:
+            text = vm.title
+        case .tags:
+            text = vm.tags
+        case .none:
+            text = ""
+        }
+        let showEditHint = videoDetailHoverType == showHoverStatus
+        return Button {
+            TextInputView(text: text, multiLine: true) { text in
+                guard var video = DBManager.share.getVideo(id: vm.id) else { return }
+                switch showHoverStatus {
+                case .desc:
+                    video.desc = text
+                case .title:
+                    video.title = text
+                case .tags:
+                    video.tags = text
+                case .none:
+                    break
+                }
+                DBManager.share.updateVideo(id: vm.id, item: video)
+                guard let index = videoVms.firstIndex(where: { $0.id == vm.id }) else { return }
+                var newVm = VideoPreviewView.ViewModel.from(video: video)
+                newVm.isSelected = true
+                videoVms[index] = newVm
+            }.show()
+        } label: {
+            // TODO: 点击区域优化，现在没有文字的区域点击无响应
+            ZStack(alignment: .bottomTrailing) {
+                Text(text ?? "").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+                if showEditHint {
+                    Image(systemName: "pencil").padding(3)
+                }
+            }
+            .padding(5)
+            .frame(minHeight: 35)
+            .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(
+                showEditHint ? .green : .clear,
+                style: StrokeStyle(lineWidth: 1, dash: [5])
+            ))
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onHover { hover in
+            videoDetailHoverType = hover ? showHoverStatus : .none
         }
     }
 
@@ -349,11 +405,7 @@ struct ContentView: View {
         var video = videoVms[index]
         videoVms[index] = video.setSelected(value: !video.isSelected)
         if enablePreview {
-            setWallpaper(
-                path: VideoHelper.share.getFullPath(videoId: video.id, filename: video.file),
-                title: video.title,
-                cleanPlaylist: false
-            )
+            setWallpaper(path: video.file, title: video.title, cleanPlaylist: false)
         }
     }
 
