@@ -379,7 +379,7 @@ struct ContentView: View {
             ZStack(alignment: .bottomTrailing) {
                 Text(text ?? "").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
                 if showEditHint {
-                    Image(systemName: "pencil").padding(3)
+                    Image(systemName: "square.and.pencil").padding(3)
                 }
             }
             .padding(5)
