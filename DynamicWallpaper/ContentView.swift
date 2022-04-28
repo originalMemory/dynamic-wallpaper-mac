@@ -221,6 +221,9 @@ struct ContentView: View {
         .frame(width: 200)
         .onReceive(NotificationCenter.default.publisher(for: ScreenDidChangeNotification)) { output in
             monitorScale = getMonitorScale()
+            if curScreenIndex >= NSScreen.screens.count {
+                curScreenIndex = NSScreen.screens.count - 1
+            }
             screenInfos = NSScreen.screens.map {
                 ScreenInfo.from(screen: $0)
             }
@@ -286,6 +289,11 @@ struct ContentView: View {
             }
             Text("当前壁纸：\n\(info.videoName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
             Text("当前播放列表: \n\(info.playlistName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
+            if info.playlistName != nil {
+                Button("切换下一个") {
+                    WallpaperManager.share.switch2NextWallpaper(screenHash: info.screenHash)
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: VideoDidChangeNotification)) { output in
             guard let userInfo = output.userInfo else { return }

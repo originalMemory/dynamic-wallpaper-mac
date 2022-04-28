@@ -132,16 +132,26 @@ class WallpaperManager {
         self.config = config
         stopPlay()
         timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(config.periodInMin * 60), repeats: true) { timer in
-            for monitor in self.monitors {
-                guard let playlistId = monitor.playlistId,
-                      let videos = self.getVideos(playlistId: playlistId) else { continue }
-                let nextIndex = self.getNextIndex(type: config.loopType, count: videos.count, curIndex: monitor.index)
-                monitor.index = nextIndex
-                let video = videos[nextIndex]
-                if let path = video.fullFilePath() {
-                    self.refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))
-                }
-            }
+            self.switchAll2NextWallpaper()
+        }
+    }
+
+    func switchAll2NextWallpaper() {
+        for screen in NSScreen.screens {
+            switch2NextWallpaper(screenHash: screen.hash)
+        }
+    }
+
+    func switch2NextWallpaper(screenHash: Int) {
+        guard let config = config,
+              let monitor = getMonitor(screenHash: screenHash),
+              let playlistId = monitor.playlistId,
+              let videos = getVideos(playlistId: playlistId) else { return }
+        let nextIndex = getNextIndex(type: config.loopType, count: videos.count, curIndex: monitor.index)
+        monitor.index = nextIndex
+        let video = videos[nextIndex]
+        if let path = video.fullFilePath() {
+            refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))
         }
     }
 
@@ -171,11 +181,8 @@ class WallpaperManager {
         }
         UserDefaults.standard.set(String(playlistId), forKey: getScreenPlaylistKey(screenHash: screenHash))
         monitor.playlistId = playlistId
-        let index = getNextIndex(type: config?.loopType ?? .order, count: videos.count)
-        if let video = videos.safeValue(index: index), let path = video.fullFilePath() {
-            monitor.index = index
-            refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))
-        }
+        monitor.index = -1
+        switch2NextWallpaper(screenHash: screenHash)
     }
 
     private func getVideos(playlistId: Int64) -> [Video]? {
