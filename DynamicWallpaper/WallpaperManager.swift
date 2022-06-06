@@ -17,20 +17,18 @@ class WallpaperManager {
     private init() {}
 
     func setup() {
-        loadConfig()
         // 初始化壁纸信息
         var screenInfos: [ScreenInfo] = []
         for screen in NSScreen.screens {
             screenInfos.append(ScreenInfo.from(screen: screen))
             let monitor = Monitor(screen: screen)
             monitors.append(monitor)
-            let playlistId = UserDefaults.standard.string(forKey: getScreenPlaylistKey(screenHash: screen.hash))
-            setPlaylistToMonitor(playlistId: Int64(playlistId ?? "") ?? 0, screenHash: screen.hash)
         }
+        loadConfig()
         NotificationCenter.default.post(name: ScreenDidChangeNotification, object: screenInfos)
 
         // 监听screens 变化
-        self.preScreensHashValue = NSScreen.screens.hashValue
+        preScreensHashValue = NSScreen.screens.hashValue
         let observer = CFRunLoopObserverCreateWithHandler(
             kCFAllocatorDefault,
             CFRunLoopActivity.afterWaiting.rawValue,
@@ -65,9 +63,9 @@ class WallpaperManager {
             return
         }
         refreshWindow(monitor: monitor, videoName: videoName, videoUrl: videoUrl)
-        if cleanPlaylist {
-            monitor.playlistId = nil
-            UserDefaults.standard.set(nil, forKey: getScreenPlaylistKey(screenHash: screenHash))
+        if cleanPlaylist, let config = getConfig(screenHash: screenHash) {
+            config.playlistId = nil
+            addOrUpdateConfig(config: config)
         }
     }
 
@@ -108,32 +106,51 @@ class WallpaperManager {
 
     // MARK: - 列表播放控制
 
-    private var timer: Timer?
-    var config: PlayConfig?
-    private let kConfig = "playConfig"
-    private let kScreenPlaylist = "screenPlaylist_"
+    var screenConfigs = [ScreenPlayConfig]()
+    var screenHash2Timer = [Int: Timer]()
 
     private func loadConfig() {
-        guard let jsonStr = UserDefaults.standard.string(forKey: kConfig),
-              let data = jsonStr.data(using: .utf8),
-              let config = try? JSONDecoder().decode(PlayConfig.self, from: data) else { return }
-        startPlay(config: config)
-    }
-
-    func updateConfig(config: PlayConfig) {
-        guard let jsonData = try? JSONEncoder().encode(config) else { return }
-        let jsonStr = String(decoding: jsonData, as: UTF8.self)
-        UserDefaults.standard.set(jsonStr, forKey: kConfig)
-        startPlay(config: config)
-    }
-
-    private func startPlay(config: PlayConfig) {
-        print("开始播放 \(config)")
-        self.config = config
+        let hashes = NSScreen.screens.map { $0.hash }
+        DBManager.share.delete(type: .screenPlayConfig, id: 3)
+        screenConfigs = DBManager.share.search(
+            type: .screenPlayConfig,
+            filter: hashes.contains(Column.screenHash)
+        ).map { $0.toScreenPlayConfig() }
         stopPlay()
-        timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(config.periodInMin * 60), repeats: true) { timer in
-            self.switchAll2NextWallpaper()
+        for config in screenConfigs {
+            let timer = Timer.scheduledTimer(
+                withTimeInterval: TimeInterval(config.periodInMin * 60),
+                repeats: true
+            ) { timer in
+                self.switch2NextWallpaper(screenHash: config.screenHash)
+            }
+            timer.fire()
+            screenHash2Timer[config.screenHash] = timer
         }
+    }
+
+    func addOrUpdateConfig(config: ScreenPlayConfig) {
+        if config.configId > 0 {
+            DBManager.share.updateScreenPlayConfig(id: config.configId, item: config)
+        } else {
+            DBManager.share.insertScreenPlayConfig(item: config)
+        }
+        let key = config.screenHash
+        screenHash2Timer[key]?.invalidate()
+        screenHash2Timer[key] = nil
+        if config.playlistId != nil {
+            screenHash2Timer[key] = Timer.scheduledTimer(
+                withTimeInterval: TimeInterval(config.periodInMin * 60),
+                repeats: true
+            ) { timer in
+                self.switch2NextWallpaper(screenHash: key)
+            }
+            screenHash2Timer[key]?.fire()
+        }
+    }
+
+    func getConfig(screenHash: Int) -> ScreenPlayConfig? {
+        screenConfigs.first { config in config.screenHash == screenHash }
     }
 
     func switchAll2NextWallpaper() {
@@ -143,12 +160,13 @@ class WallpaperManager {
     }
 
     func switch2NextWallpaper(screenHash: Int) {
-        guard let config = config,
+        guard let config = screenConfigs.first(where: { $0.screenHash == screenHash }),
               let monitor = getMonitor(screenHash: screenHash),
-              let playlistId = monitor.playlistId,
+              let playlistId = config.playlistId,
               let videos = getVideos(playlistId: playlistId) else { return }
-        let nextIndex = getNextIndex(type: config.loopType, count: videos.count, curIndex: monitor.index)
-        monitor.index = nextIndex
+        let nextIndex = getNextIndex(type: config.loopType, count: videos.count, curIndex: config.curIndex)
+        config.curIndex = nextIndex
+        DBManager.share.updateScreenPlayConfig(id: config.configId, item: config)
         let video = videos[nextIndex]
         if let path = video.fullFilePath() {
             refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))
@@ -165,24 +183,22 @@ class WallpaperManager {
     }
 
     func stopPlay() {
-        timer?.invalidate()
-        timer = nil
-    }
-
-    private func getScreenPlaylistKey(screenHash: Int) -> String {
-        "\(kScreenPlaylist)\(screenHash)"
+        screenHash2Timer.forEach { key, value in value.invalidate() }
+        screenHash2Timer.removeAll()
     }
 
     func setPlaylistToMonitor(playlistId: Int64, screenHash: Int) {
-        guard let monitor = getMonitor(screenHash: screenHash),
-              let videos: [Video] = getVideos(playlistId: playlistId)
-        else {
+        let config = getConfig(screenHash: screenHash) ?? ScreenPlayConfig(
+            screenHash: screenHash,
+            periodInMin: 5,
+            loopType: .order
+        )
+        if config.playlistId == playlistId {
             return
         }
-        UserDefaults.standard.set(String(playlistId), forKey: getScreenPlaylistKey(screenHash: screenHash))
-        monitor.playlistId = playlistId
-        monitor.index = -1
-        switch2NextWallpaper(screenHash: screenHash)
+        config.playlistId = playlistId
+        config.curIndex = -1
+        addOrUpdateConfig(config: config)
     }
 
     private func getVideos(playlistId: Int64) -> [Video]? {
@@ -195,8 +211,8 @@ class WallpaperManager {
 
     /// 这两个方法是用于设置页面初始化信息
     func getScreenPlaylistName(screenHash: Int) -> String? {
-        guard let playlistId = UserDefaults.standard.string(forKey: getScreenPlaylistKey(screenHash: screenHash)),
-              let playlist = DBManager.share.getPlaylist(id: Int64(playlistId) ?? -1) else { return nil }
+        guard let playlistId = getConfig(screenHash: screenHash)?.playlistId,
+              let playlist = DBManager.share.getPlaylist(id: playlistId) else { return nil }
         return playlist.title
     }
 

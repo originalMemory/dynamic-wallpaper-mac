@@ -32,6 +32,31 @@ struct Playlist {
     }
 }
 
+class ScreenPlayConfig {
+    let configId: Int64
+    let screenHash: Int
+    var playlistId: Int64?
+    var periodInMin: Int
+    var curIndex: Int
+    var loopType: PlayLoopType
+
+    init(
+        configId: Int64 = 0,
+        screenHash: Int,
+        playlistId: Int64? = nil,
+        periodInMin: Int,
+        curIndex: Int = -1,
+        loopType: PlayLoopType
+    ) {
+        self.configId = configId
+        self.screenHash = screenHash
+        self.playlistId = playlistId
+        self.periodInMin = periodInMin
+        self.curIndex = curIndex
+        self.loopType = loopType
+    }
+}
+
 struct ScreenInfo {
     let screenHash: Int
     let name: String
@@ -52,9 +77,7 @@ struct ScreenInfo {
 
 class Monitor {
     let screen: NSScreen
-    var playlistId: Int64?
     var videoName: String?
-    var index: Int = -1
     var window: WallpaperWindow?
 
     init(screen: NSScreen) {
@@ -89,6 +112,17 @@ extension Row {
             md5: self[Column.md5],
             wallpaperEngineId: self[Column.wallpaperEngineId],
             contentrating: self[Column.contentrating]
+        )
+    }
+
+    func toScreenPlayConfig() -> ScreenPlayConfig {
+        ScreenPlayConfig(
+            configId: self[Column.id],
+            screenHash: self[Column.screenHash],
+            playlistId: self[Column.playlistId],
+            periodInMin: self[Column.periodInMin],
+            curIndex: self[Column.periodInMin],
+            loopType: PlayLoopType(rawValue: self[Column.loopType]) ?? PlayLoopType.order
         )
     }
 }

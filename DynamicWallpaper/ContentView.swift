@@ -164,11 +164,6 @@ struct ContentView: View {
                     delPlaylist()
                 }
                 .disabled(curPlaylistIndex < 0)
-                Spacer()
-                Button("播放设置") {
-                    PlayConfigView().showInNewWindow(title: "播放设置")
-                }
-                Spacer()
             }
         }
         .padding(.leading, Metric.horizontalMargin)
@@ -267,6 +262,11 @@ struct ContentView: View {
             var info = screenInfos[curScreenIndex]
             Text(info.name)
             Text("\(Int(info.size.width))*\(Int(info.size.height))")
+            Button("播放设置") {
+                if let screenHash = screenInfos.safeValue(index: curScreenIndex)?.screenHash {
+                    PlayConfigView(screenHash: screenHash).showInNewWindow(title: "播放设置")
+                }
+            }
             if curShowMode() == .allVideo {
                 Button("设置选中的壁纸") {
                     guard let video = videoVms.first(where: { $0.isSelected }) else {
