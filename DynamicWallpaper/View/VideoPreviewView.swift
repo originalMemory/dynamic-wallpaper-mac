@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import GIFImage
 
 /// 视频预览 view
 struct VideoPreviewView: View {
@@ -15,18 +16,17 @@ struct VideoPreviewView: View {
         let desc: String?
         let tags: String?
         let file: String
-        let previewImage: NSImage?
+        let previewPath: String?
         var isSelected: Bool = false
 
         static func from(video: Video) -> ViewModel {
-            let path = VideoHelper.share.getFullPath(videoId: video.videoId, filename: video.preview)
             return VideoPreviewView.ViewModel(
                 id: video.videoId,
                 title: video.title,
                 desc: video.desc,
                 tags: video.tags,
                 file: video.fullFilePath() ?? "",
-                previewImage: path != nil ? NSImage(contentsOfFile: path!) : nil
+                previewPath: VideoHelper.share.getFullPath(videoId: video.videoId, filename: video.preview)
             )
         }
 
@@ -50,8 +50,14 @@ struct VideoPreviewView: View {
         ZStack(alignment: .bottom) {
             // 通过这个限制高度为外面设置的高度
             GeometryReader { _ in
-                if let previewImage = vm.previewImage {
-                    Image(nsImage: previewImage).resizable().scaledToFill()
+                if let path = vm.previewPath {
+                    if path.components(separatedBy: ".").last?.lowercased() == "gif" {
+                        GIFImage(source: .local(filePath: path)).scaledToFill()
+                    } else if let previewImage = NSImage(contentsOfFile: path) {
+                        Image(nsImage: previewImage).resizable().scaledToFill()
+                    } else {
+                        Image("defaultPreview").resizable().scaledToFill()
+                    }
                 } else {
                     Image("defaultPreview").resizable().scaledToFill()
                 }
@@ -94,7 +100,7 @@ struct VideoPreviewView_Previews: PreviewProvider {
             desc: nil,
             tags: nil,
             file: "",
-            previewImage: nil
+            previewPath: nil
         )
         return VideoPreviewView(vm: model, index: "1").frame(width: 400, height: 300)
     }

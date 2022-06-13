@@ -1,18 +1,25 @@
 PODS:
+  - GIFImage (0.0.4)
   - SQLite.swift (0.13.3):
     - SQLite.swift/standard (= 0.13.3)
   - SQLite.swift/standard (0.13.3)
 
 DEPENDENCIES:
+  - GIFImage (from `GIFImage`)
   - SQLite.swift
 
 SPEC REPOS:
   trunk:
     - SQLite.swift
 
+EXTERNAL SOURCES:
+  GIFImage:
+    :path: GIFImage
+
 SPEC CHECKSUMS:
+  GIFImage: 250526420d65bf93ebd92ece33406d8797433606
   SQLite.swift: 903bfa3bc9ab06345fdfbb578e34f47cfcf417da
 
-PODFILE CHECKSUM: a58d9eb42099ec0b3de413c81586d666a5aba517
+PODFILE CHECKSUM: b69b03fae14ae27440f8db7ec28b41d32d7e0e51
 
-COCOAPODS: 1.11.2
+COCOAPODS: 1.11.3
