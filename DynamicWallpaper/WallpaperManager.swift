@@ -130,8 +130,8 @@ class WallpaperManager {
     }
 
     func addOrUpdateConfig(config: ScreenPlayConfig) {
-        if config.configId > 0 {
-            DBManager.share.updateScreenPlayConfig(id: config.configId, item: config)
+        if config.id > 0 {
+            DBManager.share.updateScreenPlayConfig(id: config.id, item: config)
         } else {
             DBManager.share.insertScreenPlayConfig(item: config)
         }
@@ -166,7 +166,7 @@ class WallpaperManager {
               let videos = getVideos(playlistId: playlistId) else { return }
         let nextIndex = getNextIndex(type: config.loopType, count: videos.count, curIndex: config.curIndex)
         config.curIndex = nextIndex
-        DBManager.share.updateScreenPlayConfig(id: config.configId, item: config)
+        DBManager.share.updateScreenPlayConfig(id: config.id, item: config)
         let video = videos[nextIndex]
         if let path = video.fullFilePath() {
             refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))

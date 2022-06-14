@@ -10,27 +10,26 @@ import SwiftUI
 struct Tag: Hashable {
     static let addTagId: Int = -1
     let name: String
-    let tagId: Int
+    let id: Int
 
     static func fromPlaylist(playlists: [Playlist]) -> [Tag] {
         var res = playlists.map { item in
-            Tag(name: item.title, tagId: item.playlistId)
+            Tag(name: item.title, id: item.id)
         }
-        res.append(Tag(name: "add", tagId: addTagId))
+        res.append(Tag(name: "add", id: addTagId))
         return res
     }
 }
 
 struct TagView: View {
-    let name: String
-    let tagId: Int
+    let tag: Tag
     let onPress: (Int) -> Void
     private let corner = RoundedRectangle(cornerRadius: 8, style: .continuous)
 
     var body: some View {
-        if tagId == Tag.addTagId {
+        if tag.id == Tag.addTagId {
             Button {
-                onPress(tagId)
+                onPress(tag.id)
             } label: {
                 Image(systemName: "plus.circle")
             }
@@ -38,9 +37,9 @@ struct TagView: View {
 
         } else {
             HStack {
-                Text(name)
+                Text(tag.name)
                 Button {
-                    onPress(tagId)
+                    onPress(tag.id)
                 } label: {
                     Image(systemName: "xmark").frame(width: 10, height: 10)
                 }
@@ -62,11 +61,11 @@ struct FlexibleTagListView: View {
 
     var body: some View {
         FlexibleView(data: tags, spacing: 5, alignment: .leading) { item in
-            TagView(name: item.name, tagId: item.tagId) { tagId in
-                if tagId == Tag.addTagId {
+            TagView(tag: item) { id in
+                if id == Tag.addTagId {
                     onAdd()
                 } else {
-                    onDel(tagId)
+                    onDel(id)
                 }
             }
         }
@@ -76,9 +75,9 @@ struct FlexibleTagListView: View {
 struct FlexibleTagListView_Previews: PreviewProvider {
     static var previews: some View {
         FlexibleTagListView(tags: [
-            Tag(name: "第一个", tagId: 1),
-            Tag(name: "第二个", tagId: 2),
-            Tag(name: "add", tagId: Tag.addTagId),
+            Tag(name: "第一个", id: 1),
+            Tag(name: "第二个", id: 2),
+            Tag(name: "add", id: Tag.addTagId),
         ], onAdd: {}, onDel: { _ in })
     }
 }

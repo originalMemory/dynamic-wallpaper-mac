@@ -20,7 +20,7 @@ struct SelectPlayListView: View {
             HStack {
                 Spacer()
                 Button("保存") {
-                    onConfirm(data[index].playlistId)
+                    onConfirm(data[index].id)
                     NSApplication.shared.keyWindow?.close()
                 }
                 Button("取消") {

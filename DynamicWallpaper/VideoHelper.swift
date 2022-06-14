@@ -58,7 +58,7 @@ class VideoHelper {
                         let title: String = (jsonObj["title"] as? String) ?? ""
                         let desc: String? = jsonObj["description"] as? String
                         let model = Video(
-                            videoId: 0,
+                            id: 0,
                             title: title,
                             desc: desc,
                             tags: (jsonObj["tags"] as? [String] ?? []).joined(separator: ","),
@@ -82,7 +82,7 @@ class VideoHelper {
                         }
                     } else {
                         let model = Video(
-                            videoId: 0,
+                            id: 0,
                             title: title,
                             desc: "",
                             tags: "",

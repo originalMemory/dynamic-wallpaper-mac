@@ -157,7 +157,7 @@ struct ContentView: View {
                 }
                 Button("修改") {
                     TextInputWC(text: playlists[curPlaylistIndex].title) { text in
-                        updatePlaylistName(id: playlists[curPlaylistIndex].playlistId, name: text)
+                        updatePlaylistName(id: playlists[curPlaylistIndex].id, name: text)
                     }
                     .showWindow(nil)
                 }
@@ -288,7 +288,7 @@ struct ContentView: View {
                         info.playlistName = playlist.title
                         screenInfos[curScreenIndex] = info
                         WallpaperManager.share.setPlaylistToMonitor(
-                            playlistId: playlist.playlistId,
+                            playlistId: playlist.id,
                             screenHash: info.screenHash
                         )
                     }
@@ -346,7 +346,7 @@ struct ContentView: View {
                             Button("从列表中移除") {
                                 addOrDelVideoToPlaylist(
                                     isAdd: false,
-                                    playlistId: playlists[curPlaylistIndex].playlistId
+                                    playlistId: playlists[curPlaylistIndex].id
                                 )
                             }
                         }
@@ -530,7 +530,7 @@ struct ContentView: View {
                 var videoIds = playlist.videoIdList()
                 videoIds.removeAll { $0 == videoId }
                 playlist.videoIds = videoIds.map { String($0) }.joined(separator: ",")
-                DBManager.share.updatePlaylist(id: playlist.playlistId, item: playlist)
+                DBManager.share.updatePlaylist(id: playlist.id, item: playlist)
             }
             DBManager.share.delete(type: .video, id: videoId)
         }
@@ -540,7 +540,7 @@ struct ContentView: View {
     // MARK: - 播放列表管理
 
     private func createPlaylist(name: String) {
-        let playlist = Playlist(playlistId: 0, title: name, videoIds: "")
+        let playlist = Playlist(id: 0, title: name, videoIds: "")
         _ = DBManager.share.insertPlaylist(item: playlist)
         playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
     }
@@ -553,7 +553,7 @@ struct ContentView: View {
     }
 
     private func delPlaylist() {
-        guard let playlistId = playlists.safeValue(index: curPlaylistIndex)?.playlistId else { return }
+        guard let playlistId = playlists.safeValue(index: curPlaylistIndex)?.id else { return }
         DBManager.share.delete(type: .playlist, id: playlistId)
         playlists.remove(at: curPlaylistIndex)
         if curPlaylistIndex >= playlists.count {
@@ -572,7 +572,7 @@ struct ContentView: View {
     // MARK: - 播放列表包含的视频增删
 
     private func addOrDelVideoToPlaylist(isAdd: Bool, playlistId: Int) {
-        guard var playlist = playlists.first(where: { $0.playlistId == playlistId }) else { return }
+        guard var playlist = playlists.first(where: { $0.id == playlistId }) else { return }
         let selectedIds = videoVms.filter { $0.isSelected }.map { $0.id }
         var videoIds = playlist.videoIdList()
         if isAdd {
@@ -583,7 +583,7 @@ struct ContentView: View {
         }
         playlist.videoIds = videoIds.map { String($0) }.joined(separator: ",")
         playlists[curPlaylistIndex] = playlist
-        DBManager.share.updatePlaylist(id: playlist.playlistId, item: playlist)
+        DBManager.share.updatePlaylist(id: playlist.id, item: playlist)
         if curShowMode() == .playlist {
             refreshPlaylistVideo()
         } else if selectedIds.count > 1 {

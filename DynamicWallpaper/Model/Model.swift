@@ -6,7 +6,7 @@ import Foundation
 import SQLite
 
 struct Video {
-    let videoId: Int
+    let id: Int
     var title: String
     var desc: String?
     var tags: String?
@@ -18,12 +18,12 @@ struct Video {
     var contentrating: String?
 
     func fullFilePath() -> String? {
-        VideoHelper.share.getFullPath(videoId: videoId, filename: file)
+        VideoHelper.share.getFullPath(videoId: id, filename: file)
     }
 }
 
 struct Playlist: Hashable {
-    let playlistId: Int
+    let id: Int
     var title: String
     var videoIds: String
 
@@ -32,12 +32,12 @@ struct Playlist: Hashable {
     }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(playlistId)
+        hasher.combine(id)
     }
 }
 
 class ScreenPlayConfig {
-    let configId: Int
+    let id: Int
     let screenHash: Int
     var playlistId: Int?
     var periodInMin: Int
@@ -45,14 +45,14 @@ class ScreenPlayConfig {
     var loopType: PlayLoopType
 
     init(
-        configId: Int = 0,
+        id: Int = 0,
         screenHash: Int,
         playlistId: Int? = nil,
         periodInMin: Int,
         curIndex: Int = -1,
         loopType: PlayLoopType
     ) {
-        self.configId = configId
+        self.id = id
         self.screenHash = screenHash
         self.playlistId = playlistId
         self.periodInMin = periodInMin
@@ -102,12 +102,12 @@ struct PlayConfig: Codable {
 
 extension Row {
     func toPlaylist() -> Playlist {
-        Playlist(playlistId: self[Column.id], title: self[Column.title], videoIds: self[Column.videoIds])
+        Playlist(id: self[Column.id], title: self[Column.title], videoIds: self[Column.videoIds])
     }
 
     func toVideo() -> Video {
         Video(
-            videoId: self[Column.id],
+            id: self[Column.id],
             title: self[Column.title],
             desc: self[Column.desc],
             tags: self[Column.tags],
@@ -121,7 +121,7 @@ extension Row {
 
     func toScreenPlayConfig() -> ScreenPlayConfig {
         ScreenPlayConfig(
-            configId: self[Column.id],
+            id: self[Column.id],
             screenHash: self[Column.screenHash],
             playlistId: self[Column.playlistId],
             periodInMin: self[Column.periodInMin],

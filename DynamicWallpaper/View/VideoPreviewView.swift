@@ -21,12 +21,12 @@ struct VideoPreviewView: View {
 
         static func from(video: Video) -> ViewModel {
             return VideoPreviewView.ViewModel(
-                id: video.videoId,
+                id: video.id,
                 title: video.title,
                 desc: video.desc,
                 tags: video.tags,
                 file: video.fullFilePath() ?? "",
-                previewPath: VideoHelper.share.getFullPath(videoId: video.videoId, filename: video.preview)
+                previewPath: VideoHelper.share.getFullPath(videoId: video.id, filename: video.preview)
             )
         }
 
