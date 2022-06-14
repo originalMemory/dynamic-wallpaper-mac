@@ -1,6 +1,7 @@
 //
 // Created by 吴厚波 on 2022/4/15.
 //
+
 import SwiftUI
 
 extension String {
@@ -49,6 +50,29 @@ extension Array {
     }
 }
 
+struct ViewDidLoadModifier: ViewModifier {
+    @State private var didLoad = false
+    private let action: (() -> Void)?
+
+    init(perform action: (() -> Void)? = nil) {
+        self.action = action
+    }
+
+    func body(content: Content) -> some View {
+        content.onAppear {
+            if didLoad == false {
+                didLoad = true
+                action?()
+            }
+        }
+    }
+}
+
+private struct SizePreferenceKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {}
+}
+
 extension View {
     func showInNewWindow(title: String? = nil) {
         let window = NSWindow(contentViewController: NSHostingController(rootView: self))
@@ -56,5 +80,19 @@ extension View {
             window.title = title
         }
         NSWindowController(window: window).showWindow(nil)
+    }
+
+    func readSize(onChange: @escaping (CGSize) -> Void) -> some View {
+        background(
+            GeometryReader { geometryProxy in
+                Color.clear
+                    .preference(key: SizePreferenceKey.self, value: geometryProxy.size)
+            }
+        )
+        .onPreferenceChange(SizePreferenceKey.self, perform: onChange)
+    }
+
+    func onLoad(preform action: (() -> Void)? = nil) -> some View {
+        modifier(ViewDidLoadModifier(perform: action))
     }
 }

@@ -14,9 +14,9 @@ struct TextInputView: View {
     private let onConfirm: InputListener
     private let multiline: Bool
 
-    init(text: String?, multiLine: Bool, onConfirm: @escaping InputListener) {
+    init(text: String?, multiline: Bool, onConfirm: @escaping InputListener) {
         self.onConfirm = onConfirm
-        self.multiline = multiLine
+        self.multiline = multiline
         if let safeText = text {
             _text = State(initialValue: safeText)
         }
@@ -48,13 +48,13 @@ struct TextInputView: View {
 
 struct TextInputView_Previews: PreviewProvider {
     static var previews: some View {
-        TextInputView(text: nil, multiLine: true, onConfirm: { _ in })
+        TextInputView(text: nil, multiline: true, onConfirm: { _ in })
     }
 }
 
 class TextInputWC: NSWindowController {
     convenience init(text: String? = nil, onConfirm: @escaping InputListener) {
-        let view = TextInputView(text: text, multiLine: false, onConfirm: onConfirm)
+        let view = TextInputView(text: text, multiline: false, onConfirm: onConfirm)
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "输入文本"
         self.init(window: window)

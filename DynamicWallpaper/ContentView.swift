@@ -53,11 +53,7 @@ struct ContentView: View {
 
     init() {
         videoVms = DBManager.share.search(type: .video).map {
-            var vm = VideoPreviewView.ViewModel.from(video: $0.toVideo())
-            if vm.id == 1 {
-                vm.isSelected = true
-            }
-            return vm
+            VideoPreviewView.ViewModel.from(video: $0.toVideo())
         }
         screenInfos = NSScreen.screens.map { screen in
             var info = ScreenInfo.from(screen: screen)
@@ -128,6 +124,12 @@ struct ContentView: View {
             screenAndDetailView.padding(.trailing, Metric.horizontalMargin)
         }
         .frame(width: 1100, height: 850, alignment: .center)
+        .onLoad {
+            if videoVms.count > 0 {
+                videoVms[0].isSelected = true
+                curBelongPlaylists = getBelongPlaylists(videoId: videoVms[0].id)
+            }
+        }
     }
 
     /// 视频和播放列表操作功能区
@@ -183,6 +185,8 @@ struct ContentView: View {
         }
     }
 
+    @State private var showNoPlaylistAlert = false
+
     /// 屏幕信息和详情 view
     var screenAndDetailView: some View {
         VStack {
@@ -195,19 +199,22 @@ struct ContentView: View {
             }
             videoDetailView
             Spacer()
-            if curShowMode() == .allVideo {
+            if curShowMode() == .allVideo, videoVms.contains { model in model.isSelected } {
                 Text("播放列表")
                 VStack {
-                    playlistPicker
-                    HStack {
-                        Button("添加") {
-                            addOrDelVideoToPlaylist(isAdd: true)
+                    FlexibleTagListView(tags: Tag.fromPlaylist(playlists: curBelongPlaylists), onAdd: {
+                        if playlists.isEmpty {
+                            showNoPlaylistAlert = true
+                        } else {
+                            SelectPlayListView(data: playlists) { id in
+                                addOrDelVideoToPlaylist(isAdd: true, playlistId: id)
+                            }.showInNewWindow(title: "选择播放列表")
                         }
-                        Button("删除") {
-                            addOrDelVideoToPlaylist(isAdd: false)
-                        }
+                    }) { tagId in
+                        addOrDelVideoToPlaylist(isAdd: false, playlistId: tagId)
+                    }.alert(isPresented: $showNoPlaylistAlert) {
+                        Alert(title: Text("没有播放列表！"))
                     }
-                    .disabled(curPlaylistIndex < 0)
                 }
                 .frame(maxWidth: .infinity)
                 .padding().overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(Color.white))
@@ -336,7 +343,12 @@ struct ContentView: View {
                     HStack {
                         Button("删除") { delSelectedVideo() }
                         if curShowMode() == .playlist {
-                            Button("从列表中移除") { addOrDelVideoToPlaylist(isAdd: false) }
+                            Button("从列表中移除") {
+                                addOrDelVideoToPlaylist(
+                                    isAdd: false,
+                                    playlistId: playlists[curPlaylistIndex].playlistId
+                                )
+                            }
                         }
                     }
                 }
@@ -364,7 +376,7 @@ struct ContentView: View {
         }
         let showEditHint = videoDetailHoverType == showHoverStatus
         return Button {
-            TextInputView(text: text, multiLine: true) { text in
+            TextInputView(text: text, multiline: true) { text in
                 guard var video = DBManager.share.getVideo(id: vm.id) else { return }
                 switch showHoverStatus {
                 case .desc:
@@ -405,6 +417,8 @@ struct ContentView: View {
 
     // MARK: - 视频管理
 
+    @State private var curBelongPlaylists: [Playlist] = []
+
     private func onVideoPreviewClick(id: Int64, enableMulti: Bool, enablePreview: Bool) {
         if !enableMulti {
             resetVideoSelectStatus(value: false)
@@ -412,8 +426,20 @@ struct ContentView: View {
         guard let index = videoVms.firstIndex(where: { $0.id == id }) else { return }
         var video = videoVms[index]
         videoVms[index] = video.setSelected(value: !video.isSelected)
+        // TODO: 正则
+        curBelongPlaylists = enableMulti ? [] : getBelongPlaylists(videoId: video.id)
         if enablePreview {
             setWallpaper(path: video.file, title: video.title, cleanPlaylist: false)
+        }
+    }
+
+    private func getBelongPlaylists(videoId: Int64) -> [Playlist] {
+        let playlists = DBManager.share.search(
+            type: .playlist,
+            filter: Column.videoIds.like("%\(videoId)%")
+        ).map { $0.toPlaylist() }
+        return playlists.filter { playlist in
+            playlist.videoIdList().contains(videoId)
         }
     }
 
@@ -545,8 +571,8 @@ struct ContentView: View {
 
     // MARK: - 播放列表包含的视频增删
 
-    private func addOrDelVideoToPlaylist(isAdd: Bool) {
-        var playlist = playlists[curPlaylistIndex]
+    private func addOrDelVideoToPlaylist(isAdd: Bool, playlistId: Int64) {
+        guard var playlist = playlists.first(where: { $0.playlistId == playlistId }) else { return }
         let selectedIds = videoVms.filter { $0.isSelected }.map { $0.id }
         var videoIds = playlist.videoIdList()
         if isAdd {
@@ -560,7 +586,7 @@ struct ContentView: View {
         DBManager.share.updatePlaylist(id: playlist.playlistId, item: playlist)
         if curShowMode() == .playlist {
             refreshPlaylistVideo()
-        } else {
+        } else if selectedIds.count > 1 {
             resetVideoSelectStatus(value: false)
         }
     }

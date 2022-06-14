@@ -22,13 +22,17 @@ struct Video {
     }
 }
 
-struct Playlist {
+struct Playlist: Hashable {
     let playlistId: Int64
     var title: String
     var videoIds: String
 
     func videoIdList() -> [Int64] {
         videoIds.components(separatedBy: ",").compactMap { Int64($0) }
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(playlistId)
     }
 }
 
