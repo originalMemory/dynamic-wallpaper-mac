@@ -6,7 +6,7 @@ import Foundation
 import SQLite
 
 struct Video {
-    let videoId: Int64
+    let videoId: Int
     var title: String
     var desc: String?
     var tags: String?
@@ -23,12 +23,12 @@ struct Video {
 }
 
 struct Playlist: Hashable {
-    let playlistId: Int64
+    let playlistId: Int
     var title: String
     var videoIds: String
 
-    func videoIdList() -> [Int64] {
-        videoIds.components(separatedBy: ",").compactMap { Int64($0) }
+    func videoIdList() -> [Int] {
+        videoIds.components(separatedBy: ",").compactMap { Int($0) }
     }
 
     func hash(into hasher: inout Hasher) {
@@ -37,17 +37,17 @@ struct Playlist: Hashable {
 }
 
 class ScreenPlayConfig {
-    let configId: Int64
+    let configId: Int
     let screenHash: Int
-    var playlistId: Int64?
+    var playlistId: Int?
     var periodInMin: Int
     var curIndex: Int
     var loopType: PlayLoopType
 
     init(
-        configId: Int64 = 0,
+        configId: Int = 0,
         screenHash: Int,
-        playlistId: Int64? = nil,
+        playlistId: Int? = nil,
         periodInMin: Int,
         curIndex: Int = -1,
         loopType: PlayLoopType

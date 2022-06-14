@@ -9,7 +9,7 @@ import SwiftUI
 
 struct VideoPreviewGrid: View {
     @Binding var vms: [VideoPreviewView.ViewModel]
-    let onClick: (Int64, Bool, Bool) -> Void
+    let onClick: (Int, Bool, Bool) -> Void
     let selectAll: () -> Void
 
     let padding: CGFloat = 10
@@ -66,7 +66,7 @@ struct VideoPreviewGrid_Previews: PreviewProvider {
 }
 
 private extension VideoPreviewView.ViewModel {
-    static func mock(id: Int64, title: String) -> VideoPreviewView.ViewModel {
+    static func mock(id: Int, title: String) -> VideoPreviewView.ViewModel {
         VideoPreviewView.ViewModel(
             id: id,
             title: title,

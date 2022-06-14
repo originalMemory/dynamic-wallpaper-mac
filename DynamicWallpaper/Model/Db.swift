@@ -12,7 +12,7 @@ enum TableType: String, CaseIterable {
 }
 
 enum Column {
-    static let id = Expression<Int64>("id")
+    static let id = Expression<Int>("id")
     static let createTime = Expression<Date>("createTime")
     static let updateTime = Expression<Date>("updateTime")
 
@@ -28,7 +28,7 @@ enum Column {
     static let videoIds = Expression<String>("videoIds")
 
     static let screenHash = Expression<Int>("screenHash")
-    static let playlistId = Expression<Int64?>("playlistId")
+    static let playlistId = Expression<Int?>("playlistId")
     static let periodInMin = Expression<Int>("periodInMin")
     static let curIndex = Expression<Int>("curIndex")
     static let loopType = Expression<String>("loopType")
@@ -139,9 +139,13 @@ class DBManager: NSObject {
         }
     }
 
-    private func runInsert(_ insert: Insert) -> Int64? {
+    private func runInsert(_ insert: Insert) -> Int? {
         do {
-            return try getDB()?.run(insert)
+            if let rowId = try getDB()?.run(insert) {
+                return Int(rowId)
+            } else {
+                return nil
+            }
         } catch {
             debugPrint("插入出错：\(error)")
             return nil
@@ -149,8 +153,8 @@ class DBManager: NSObject {
     }
 
     // 根据条件删除
-    func delete(type: TableType, id: Int64) {
-        guard let query = getTable(type: type)?.filter(rowid == id) else { return }
+    func delete(type: TableType, id: Int) {
+        guard let query = getTable(type: type)?.filter(Column.id == id) else { return }
         do {
             let count = try getDB()?.run(query.delete())
             debugPrint("删除的条数为：\(count ?? 0)")
@@ -208,7 +212,7 @@ class DBManager: NSObject {
 // MARK: - Video
 
 extension DBManager {
-    func insertVideo(item: Video) -> Int64? {
+    func insertVideo(item: Video) -> Int? {
         guard let table = getTable(type: .video) else { return nil }
         let insert = table.insert(
             Column.title <- item.title,
@@ -224,10 +228,10 @@ extension DBManager {
     }
 
     // 改
-    func updateVideo(id: Int64, item: Video) {
+    func updateVideo(id: Int, item: Video) {
         guard let db = getDB(), let table = getTable(type: .video) else { return }
         do {
-            let update = table.filter(rowid == id)
+            let update = table.filter(Column.id == id)
             let count = try db.run(update.update(
                 Column.title <- item.title,
                 Column.desc <- item.desc,
@@ -245,7 +249,7 @@ extension DBManager {
         }
     }
 
-    func getVideo(id: Int64) -> Video? {
+    func getVideo(id: Int) -> Video? {
         guard let row = search(type: .video, filter: Column.id == id, limit: 1).first else { return nil }
         return row.toVideo()
     }
@@ -254,7 +258,7 @@ extension DBManager {
 // MARK: - Playlist
 
 extension DBManager {
-    func insertPlaylist(item: Playlist) -> Int64? {
+    func insertPlaylist(item: Playlist) -> Int? {
         guard let table = getTable(type: .playlist) else { return nil }
         let insert = table.insert(
             Column.title <- item.title,
@@ -263,7 +267,7 @@ extension DBManager {
         return runInsert(insert)
     }
 
-    func updatePlaylist(id: Int64, item: Playlist) {
+    func updatePlaylist(id: Int, item: Playlist) {
         guard let db = getDB(), let table = getTable(type: .playlist) else { return }
         do {
             let update = table.filter(Column.id == id)
@@ -278,7 +282,7 @@ extension DBManager {
         }
     }
 
-    func getPlaylist(id: Int64) -> Playlist? {
+    func getPlaylist(id: Int) -> Playlist? {
         guard let row = search(type: .playlist, filter: Column.id == id, limit: 1).first else { return nil }
         return row.toPlaylist()
     }
@@ -298,7 +302,7 @@ extension DBManager {
         _ = runInsert(insert)
     }
 
-    func updateScreenPlayConfig(id: Int64, item: ScreenPlayConfig) {
+    func updateScreenPlayConfig(id: Int, item: ScreenPlayConfig) {
         guard let db = getDB(), let table = getTable(type: .screenPlayConfig) else { return }
         do {
             let update = table.filter(Column.id == id)

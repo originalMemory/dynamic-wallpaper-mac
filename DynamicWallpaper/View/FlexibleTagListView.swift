@@ -8,9 +8,9 @@
 import SwiftUI
 
 struct Tag: Hashable {
-    static let addTagId: Int64 = -1
+    static let addTagId: Int = -1
     let name: String
-    let tagId: Int64
+    let tagId: Int
 
     static func fromPlaylist(playlists: [Playlist]) -> [Tag] {
         var res = playlists.map { item in
@@ -23,8 +23,8 @@ struct Tag: Hashable {
 
 struct TagView: View {
     let name: String
-    let tagId: Int64
-    let onPress: (Int64) -> Void
+    let tagId: Int
+    let onPress: (Int) -> Void
     private let corner = RoundedRectangle(cornerRadius: 8, style: .continuous)
 
     var body: some View {
@@ -58,7 +58,7 @@ struct TagView: View {
 struct FlexibleTagListView: View {
     let tags: [Tag]
     let onAdd: () -> Void
-    let onDel: (Int64) -> Void
+    let onDel: (Int) -> Void
 
     var body: some View {
         FlexibleView(data: tags, spacing: 5, alignment: .leading) { item in

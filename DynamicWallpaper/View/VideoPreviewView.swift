@@ -11,7 +11,7 @@ import GIFImage
 /// 视频预览 view
 struct VideoPreviewView: View {
     struct ViewModel: Hashable {
-        let id: Int64
+        let id: Int
         let title: String
         let desc: String?
         let tags: String?

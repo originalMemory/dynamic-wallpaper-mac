@@ -187,7 +187,7 @@ class WallpaperManager {
         screenHash2Timer.removeAll()
     }
 
-    func setPlaylistToMonitor(playlistId: Int64, screenHash: Int) {
+    func setPlaylistToMonitor(playlistId: Int, screenHash: Int) {
         let config = getConfig(screenHash: screenHash) ?? ScreenPlayConfig(
             screenHash: screenHash,
             periodInMin: 5,
@@ -201,7 +201,7 @@ class WallpaperManager {
         addOrUpdateConfig(config: config)
     }
 
-    private func getVideos(playlistId: Int64) -> [Video]? {
+    private func getVideos(playlistId: Int) -> [Video]? {
         guard let playlist = DBManager.share.getPlaylist(id: playlistId) else { return nil }
         return DBManager.share.search(
             type: .video,

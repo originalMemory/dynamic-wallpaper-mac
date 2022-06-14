@@ -6,7 +6,7 @@ import SwiftUI
 
 struct SelectPlayListView: View {
     let data: [Playlist]
-    let onConfirm: (Int64) -> Void
+    let onConfirm: (Int) -> Void
     @State private var index = 0
 
     var body: some View {

@@ -419,7 +419,7 @@ struct ContentView: View {
 
     @State private var curBelongPlaylists: [Playlist] = []
 
-    private func onVideoPreviewClick(id: Int64, enableMulti: Bool, enablePreview: Bool) {
+    private func onVideoPreviewClick(id: Int, enableMulti: Bool, enablePreview: Bool) {
         if !enableMulti {
             resetVideoSelectStatus(value: false)
         }
@@ -433,7 +433,7 @@ struct ContentView: View {
         }
     }
 
-    private func getBelongPlaylists(videoId: Int64) -> [Playlist] {
+    private func getBelongPlaylists(videoId: Int) -> [Playlist] {
         let playlists = DBManager.share.search(
             type: .playlist,
             filter: Column.videoIds.like("%\(videoId)%")
@@ -545,7 +545,7 @@ struct ContentView: View {
         playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
     }
 
-    private func updatePlaylistName(id: Int64, name: String) {
+    private func updatePlaylistName(id: Int, name: String) {
         guard var playlist = DBManager.share.getPlaylist(id: id) else { return }
         playlist.title = name
         DBManager.share.updatePlaylist(id: id, item: playlist)
@@ -571,7 +571,7 @@ struct ContentView: View {
 
     // MARK: - 播放列表包含的视频增删
 
-    private func addOrDelVideoToPlaylist(isAdd: Bool, playlistId: Int64) {
+    private func addOrDelVideoToPlaylist(isAdd: Bool, playlistId: Int) {
         guard var playlist = playlists.first(where: { $0.playlistId == playlistId }) else { return }
         let selectedIds = videoVms.filter { $0.isSelected }.map { $0.id }
         var videoIds = playlist.videoIdList()

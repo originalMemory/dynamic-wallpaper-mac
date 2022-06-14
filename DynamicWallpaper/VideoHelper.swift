@@ -110,7 +110,7 @@ class VideoHelper {
     }
 
     /// 根据视频 id 和文件名获取文件完整路径
-    func getFullPath(videoId: Int64, filename: String?) -> String? {
+    func getFullPath(videoId: Int, filename: String?) -> String? {
         getCacheDir()?.appendPathComponent("\(videoId)".appendPathComponent(filename ?? ""))
     }
 
