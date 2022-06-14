@@ -14,7 +14,7 @@ struct VideoPreviewView: View {
         let id: Int
         let title: String
         let desc: String?
-        let tags: String?
+        let tags: [String]
         let file: String
         let previewPath: String?
         var isSelected: Bool = false
@@ -24,7 +24,7 @@ struct VideoPreviewView: View {
                 id: video.id,
                 title: video.title,
                 desc: video.desc,
-                tags: video.tags,
+                tags: video.tags?.components(separatedBy: ",") ?? [],
                 file: video.fullFilePath() ?? "",
                 previewPath: VideoHelper.share.getFullPath(videoId: video.id, filename: video.preview)
             )
@@ -35,7 +35,7 @@ struct VideoPreviewView: View {
         }
 
         mutating func setSelected(value: Bool) -> Self {
-            self.isSelected = value
+            isSelected = value
             return self
         }
     }
@@ -98,7 +98,7 @@ struct VideoPreviewView_Previews: PreviewProvider {
             id: 0,
             title: "测试标题2",
             desc: nil,
-            tags: nil,
+            tags: [],
             file: "",
             previewPath: nil
         )

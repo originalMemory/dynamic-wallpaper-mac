@@ -35,7 +35,6 @@ struct ContentView: View {
         case none
         case title
         case desc
-        case tags
     }
 
     @State private var showModeIndex = 0
@@ -202,7 +201,7 @@ struct ContentView: View {
             if curShowMode() == .allVideo, videoVms.contains { model in model.isSelected } {
                 Text("播放列表")
                 VStack {
-                    FlexibleTagListView(tags: Tag.fromPlaylist(playlists: curBelongPlaylists), onAdd: {
+                    FlexibleTagListView(tags: Tag.fromPlaylist(curBelongPlaylists), onAdd: {
                         if playlists.isEmpty {
                             showNoPlaylistAlert = true
                         } else {
@@ -337,7 +336,20 @@ struct ContentView: View {
                             getVideoDetailEditableText(vm: video, alignment: .leading, showHoverStatus: .desc)
                             Divider()
                             Text("标签").bold().frame(maxWidth: .infinity)
-                            getVideoDetailEditableText(vm: video, alignment: .leading, showHoverStatus: .tags)
+                            FlexibleTagListView(tags: Tag.fromStrList(video.tags), onAdd: {
+                                TextInputView(text: nil, multiline: false) { text in
+                                    if text.isEmpty {
+                                        return
+                                    }
+                                    var tags = video.tags
+                                    tags.append(text)
+                                    updateVideoTags(videoId: video.id, tags: tags)
+                                }.showInNewWindow(title: "添加标签")
+                            }) { index in
+                                var tags = video.tags
+                                tags.remove(at: index)
+                                updateVideoTags(videoId: video.id, tags: tags)
+                            }
                         }
                     }
                     HStack {
@@ -358,6 +370,16 @@ struct ContentView: View {
         }
     }
 
+    private func updateVideoTags(videoId: Int, tags: [String]) {
+        guard var video = DBManager.share.getVideo(id: videoId) else { return }
+        video.tags = tags.joined(separator: ",")
+        DBManager.share.updateVideo(id: videoId, item: video)
+        guard let index = videoVms.firstIndex(where: { $0.id == videoId }) else { return }
+        var newVm = VideoPreviewView.ViewModel.from(video: video)
+        newVm.isSelected = true
+        videoVms[index] = newVm
+    }
+
     private func getVideoDetailEditableText(
         vm: VideoPreviewView.ViewModel,
         alignment: Alignment,
@@ -369,8 +391,6 @@ struct ContentView: View {
             text = vm.desc
         case .title:
             text = vm.title
-        case .tags:
-            text = vm.tags
         case .none:
             text = ""
         }
@@ -383,8 +403,6 @@ struct ContentView: View {
                     video.desc = text
                 case .title:
                     video.title = text
-                case .tags:
-                    video.tags = text
                 case .none:
                     break
                 }

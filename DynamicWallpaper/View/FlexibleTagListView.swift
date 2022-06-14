@@ -12,12 +12,16 @@ struct Tag: Hashable {
     let name: String
     let id: Int
 
-    static func fromPlaylist(playlists: [Playlist]) -> [Tag] {
-        var res = playlists.map { item in
-            Tag(name: item.title, id: item.id)
-        }
-        res.append(Tag(name: "add", id: addTagId))
-        return res
+    static func fromPlaylist(_ playlists: [Playlist]) -> [Tag] {
+        appendAdd(tags: playlists.map { item in Tag(name: item.title, id: item.id) })
+    }
+
+    static func appendAdd(tags: [Tag]) -> [Tag] {
+        tags + [Tag(name: "add", id: addTagId)]
+    }
+
+    static func fromStrList(_ list: [String]) -> [Tag] {
+        appendAdd(tags: list.enumerated().map { i, item in Tag(name: item, id: i) })
     }
 }
 

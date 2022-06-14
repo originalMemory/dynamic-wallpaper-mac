@@ -71,7 +71,7 @@ private extension VideoPreviewView.ViewModel {
             id: id,
             title: title,
             desc: nil,
-            tags: nil,
+            tags: [],
             file: "",
             previewPath: nil
         )
