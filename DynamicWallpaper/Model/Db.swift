@@ -297,7 +297,8 @@ extension DBManager {
             Column.screenHash <- item.screenHash,
             Column.playlistId <- item.playlistId,
             Column.periodInMin <- item.periodInMin,
-            Column.loopType <- item.loopType.rawValue
+            Column.loopType <- item.loopType.rawValue,
+            Column.curIndex <- item.curIndex
         )
         _ = runInsert(insert)
     }
@@ -311,6 +312,7 @@ extension DBManager {
                 Column.playlistId <- item.playlistId,
                 Column.periodInMin <- item.periodInMin,
                 Column.loopType <- item.loopType.rawValue,
+                Column.curIndex <- item.curIndex,
                 Column.updateTime <- Date.now
             ))
             debugPrint("更新的条数为：\(count)")

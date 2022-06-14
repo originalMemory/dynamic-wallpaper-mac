@@ -125,7 +125,7 @@ extension Row {
             screenHash: self[Column.screenHash],
             playlistId: self[Column.playlistId],
             periodInMin: self[Column.periodInMin],
-            curIndex: self[Column.periodInMin],
+            curIndex: self[Column.curIndex],
             loopType: PlayLoopType(rawValue: self[Column.loopType]) ?? PlayLoopType.order
         )
     }
