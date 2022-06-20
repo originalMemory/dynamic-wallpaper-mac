@@ -50,6 +50,10 @@ class VideoContentView: NSView {
         layer?.addSublayer(playerLayer)
     }
 
+    deinit {
+        queuePlayer.removeObserver(self, forKeyPath: "status")
+    }
+
     override func layout() {
         super.layout()
         playerLayer.frame = bounds

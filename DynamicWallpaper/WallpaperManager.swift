@@ -201,6 +201,16 @@ class WallpaperManager {
         addOrUpdateConfig(config: config)
     }
 
+    func removePlaylistToMonitor(screenHash: Int) {
+        guard let config = getConfig(screenHash: screenHash) else { return }
+        config.playlistId = nil
+        config.curIndex = -1
+        addOrUpdateConfig(config: config)
+        screenHash2Timer[screenHash]?.invalidate()
+        screenHash2Timer[screenHash] = nil
+        removeWallpaper(screenHash: screenHash)
+    }
+
     private func getVideos(playlistId: Int) -> [Video]? {
         guard let playlist = DBManager.share.getPlaylist(id: playlistId) else { return nil }
         return DBManager.share.search(

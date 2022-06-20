@@ -268,36 +268,46 @@ struct ContentView: View {
             var info = screenInfos[curScreenIndex]
             Text(info.name)
             Text("\(Int(info.size.width))*\(Int(info.size.height))")
-            Button("播放设置") {
-                if let screenHash = screenInfos.safeValue(index: curScreenIndex)?.screenHash {
-                    PlayConfigView(screenHash: screenHash).showInNewWindow(title: "播放设置")
-                }
-            }
-            if curShowMode() == .allVideo {
-                Button("设置选中的壁纸") {
-                    guard let video = videoVms.first(where: { $0.isSelected }) else {
-                        return
+            HStack {
+                Button("播放设置") {
+                    if let screenHash = screenInfos.safeValue(index: curScreenIndex)?.screenHash {
+                        PlayConfigView(screenHash: screenHash).showInNewWindow(title: "播放设置")
                     }
-                    setWallpaper(path: video.file, title: video.title, cleanPlaylist: true)
                 }
-            }
-            if curShowMode() == .playlist {
-                Button("设置当前播放列表") {
-                    if let playlist = playlists.safeValue(index: curPlaylistIndex) {
-                        info.playlistName = playlist.title
-                        screenInfos[curScreenIndex] = info
-                        WallpaperManager.share.setPlaylistToMonitor(
-                            playlistId: playlist.id,
-                            screenHash: info.screenHash
-                        )
+                switch curShowMode() {
+                case .allVideo:
+                    Button("设置壁纸") {
+                        guard let video = videoVms.first(where: { $0.isSelected }) else {
+                            return
+                        }
+                        setWallpaper(path: video.file, title: video.title, cleanPlaylist: true)
+                    }
+                case .playlist:
+                    Button("设置播放列表") {
+                        if let playlist = playlists.safeValue(index: curPlaylistIndex) {
+                            info.playlistName = playlist.title
+                            screenInfos[curScreenIndex] = info
+                            WallpaperManager.share.setPlaylistToMonitor(
+                                playlistId: playlist.id,
+                                screenHash: info.screenHash
+                            )
+                        }
                     }
                 }
             }
             Text("当前壁纸：\n\(info.videoName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
             Text("当前播放列表: \n\(info.playlistName ?? "")").frame(maxWidth: .infinity, alignment: .leading)
             if info.playlistName != nil {
-                Button("切换下一个") {
-                    WallpaperManager.share.switch2NextWallpaper(screenHash: info.screenHash)
+                HStack {
+                    Button("切换下一个") {
+                        WallpaperManager.share.switch2NextWallpaper(screenHash: info.screenHash)
+                    }
+                    Button("清除") {
+                        info.playlistName = nil
+                        info.videoName = nil
+                        screenInfos[curScreenIndex] = info
+                        WallpaperManager.share.removePlaylistToMonitor(screenHash: info.screenHash)
+                    }
                 }
             }
         }
