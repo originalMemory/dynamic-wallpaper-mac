@@ -43,6 +43,7 @@ class ScreenPlayConfig {
     var periodInMin: Int
     var curIndex: Int
     var loopType: PlayLoopType
+    var volume: Double
 
     init(
         id: Int = 0,
@@ -50,7 +51,8 @@ class ScreenPlayConfig {
         playlistId: Int? = nil,
         periodInMin: Int,
         curIndex: Int = -1,
-        loopType: PlayLoopType
+        loopType: PlayLoopType = PlayLoopType.order,
+        volume: Double = 0
     ) {
         self.id = id
         self.screenHash = screenHash
@@ -58,6 +60,7 @@ class ScreenPlayConfig {
         self.periodInMin = periodInMin
         self.curIndex = curIndex
         self.loopType = loopType
+        self.volume = volume
     }
 }
 
@@ -126,7 +129,8 @@ extension Row {
             playlistId: self[Column.playlistId],
             periodInMin: self[Column.periodInMin],
             curIndex: self[Column.curIndex],
-            loopType: PlayLoopType(rawValue: self[Column.loopType]) ?? PlayLoopType.order
+            loopType: PlayLoopType(rawValue: self[Column.loopType]) ?? PlayLoopType.order,
+            volume: self[Column.volume]
         )
     }
 }

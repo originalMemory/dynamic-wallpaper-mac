@@ -27,7 +27,7 @@ class VideoContentView: NSView {
 
     func commInit() {
         // 默认静音
-        queuePlayer.isMuted = true
+        queuePlayer.volume = 0
         queuePlayer.addObserver(self, forKeyPath: "status", options: .new, context: nil)
 
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -99,5 +99,9 @@ class VideoContentView: NSView {
                 queuePlayer.play()
             }
         }
+    }
+
+    func setVolume(_ volume: Double) {
+        queuePlayer.volume = Float(volume)
     }
 }

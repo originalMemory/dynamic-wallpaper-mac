@@ -32,6 +32,7 @@ enum Column {
     static let periodInMin = Expression<Int>("periodInMin")
     static let curIndex = Expression<Int>("curIndex")
     static let loopType = Expression<String>("loopType")
+    static let volume = Expression<Double>("volume")
 }
 
 // MARK: - Common
@@ -41,7 +42,7 @@ class DBManager: NSObject {
     private var db: Connection?
     private var tableMap: [TableType: Table] = [:]
     private let kVersion = "dbVersion"
-    private var version = 2
+    private var version = 3
 
     override private init() {
         super.init()
@@ -76,6 +77,13 @@ class DBManager: NSObject {
                       let table = getTable(type: .screenPlayConfig)
                 else { return }
                 let res = try db.run(table.addColumn(Column.curIndex, defaultValue: -1))
+                debugPrint("更新表结构：\(res)")
+            }
+            if lastVersion < 3 {
+                guard let db = getDB(),
+                      let table = getTable(type: .screenPlayConfig)
+                else { return }
+                let res = try db.run(table.addColumn(Column.volume, defaultValue: 0.0))
                 debugPrint("更新表结构：\(res)")
             }
             UserDefaults.standard.set(version, forKey: kVersion)
@@ -126,6 +134,7 @@ class DBManager: NSObject {
                         builder.column(Column.periodInMin)
                         builder.column(Column.curIndex)
                         builder.column(Column.loopType)
+                        builder.column(Column.volume)
                         builder.column(Column.createTime, defaultValue: Date.now)
                         builder.column(Column.updateTime, defaultValue: Date.now)
                     }
@@ -298,7 +307,8 @@ extension DBManager {
             Column.playlistId <- item.playlistId,
             Column.periodInMin <- item.periodInMin,
             Column.loopType <- item.loopType.rawValue,
-            Column.curIndex <- item.curIndex
+            Column.curIndex <- item.curIndex,
+            Column.volume <- item.volume
         )
         _ = runInsert(insert)
     }
@@ -313,6 +323,7 @@ extension DBManager {
                 Column.periodInMin <- item.periodInMin,
                 Column.loopType <- item.loopType.rawValue,
                 Column.curIndex <- item.curIndex,
+                Column.volume <- item.volume,
                 Column.updateTime <- Date.now
             ))
             debugPrint("更新的条数为：\(count)")

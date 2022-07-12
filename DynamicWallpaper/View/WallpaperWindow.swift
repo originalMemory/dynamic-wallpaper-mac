@@ -47,6 +47,12 @@ class WallpaperWindow: NSWindow {
         }
     }
 
+    func setVolume(_ volume: Double) {
+        if let view = contentView as? VideoContentView {
+            view.setVolume(volume)
+        }
+    }
+
     override func update() {
         super.update()
         contentView?.frame = .init(x: 0, y: 0, width: self.frame.width, height: self.frame.height)

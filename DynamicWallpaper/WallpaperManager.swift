@@ -83,13 +83,12 @@ class WallpaperManager {
                 contentRect: .init(x: 0, y: 0, width: screen.frame.width, height: screen.frame.height),
                 screen: screen
             )
-            window.reload(url: videoUrl)
             window.backgroundColor = .clear
             window.orderFront(nil)
             monitor.window = window
-        } else {
-            monitor.window?.reload(url: videoUrl)
         }
+        monitor.window?.reload(url: videoUrl)
+        monitor.window?.setVolume(screenConfigs.first { $0.screenHash == monitor.screen.hash }?.volume ?? 0.0)
     }
 
     private func removeWallpaper(screenHash: Int) {
