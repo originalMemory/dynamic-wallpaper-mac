@@ -11,11 +11,13 @@ struct VideoPreviewGrid: View {
     @Binding var vms: [VideoPreviewView.ViewModel]
     let onClick: (Int, Bool, Bool) -> Void
     let selectAll: () -> Void
+    let onSortChange: (VideoSortType) -> Void
 
     let padding: CGFloat = 10
 
     @State var enableMulti: Bool = false
     @State var enablePreview: Bool = false
+    @State var curSortIndex = 1
 
     var body: some View {
         VStack {
@@ -25,6 +27,7 @@ struct VideoPreviewGrid: View {
                 Spacer()
                 Toggle("允许多选", isOn: $enableMulti).toggleStyle(SwitchToggleStyle(tint: .green))
                 Toggle("点击即预览", isOn: $enablePreview).toggleStyle(SwitchToggleStyle(tint: .green))
+                sortTypePicker.frame(width: 150)
             }
             .padding(EdgeInsets(top: padding, leading: padding, bottom: 0, trailing: padding))
             ScrollView {
@@ -47,6 +50,17 @@ struct VideoPreviewGrid: View {
             }
         }
     }
+
+    var sortTypePicker: some View {
+        Picker("排序", selection: $curSortIndex) {
+            ForEach(0..<VideoSortType.allCases.count, id: \.self) { i in
+                Text(VideoSortType.allCases[i].text())
+            }
+        }
+        .onChange(of: curSortIndex) { index in
+            onSortChange(VideoSortType.allCases[index])
+        }
+    }
 }
 
 struct VideoPreviewGrid_Previews: PreviewProvider {
@@ -60,7 +74,7 @@ struct VideoPreviewGrid_Previews: PreviewProvider {
         ]
         VideoPreviewGrid(vms: .constant(vms)) { id, enableMulti, enablePreview in
             print(id)
-        } selectAll: {}
+        } selectAll: {} onSortChange: { type in }
             .frame(width: 800, height: 500)
     }
 }

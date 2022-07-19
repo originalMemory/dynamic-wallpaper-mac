@@ -49,6 +49,7 @@ struct ContentView: View {
     @State private var curScreenIndex: Int = 0
     @State private var monitorScale: CGFloat = 0
     @State private var videoDetailHoverType: VideoDetailHoverStatus = .none
+    @State private var videoSortType: VideoSortType = .addTimeDesc
 
     init() {
         videoVms = DBManager.share.search(type: .video).map {
@@ -110,6 +111,13 @@ struct ContentView: View {
                 } selectAll: {
                     let allSelected = videoVms.allSatisfy { model in model.isSelected }
                     resetVideoSelectStatus(value: !allSelected)
+                } onSortChange: { type in
+                    videoSortType = type
+                    if curShowMode() == .allVideo {
+                        searchVideo()
+                    } else {
+                        refreshPlaylistVideo()
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: VideoImportIndexNotification)) { output in
                     if curShowMode() == .allVideo {
@@ -536,10 +544,14 @@ struct ContentView: View {
     private func searchVideo() {
         let videos: [Video]
         if searchTitle.isEmpty {
-            videos = DBManager.share.search(type: .video).map { $0.toVideo() }
+            videos = DBManager.share.search(type: .video, order: [videoSortType.dbOrder()]).map { $0.toVideo() }
         } else {
-            videos = DBManager.share.search(type: .video, filter: Column.title.like("%\(searchTitle)%"))
-                .map { $0.toVideo() }
+            videos = DBManager.share.search(
+                type: .video,
+                filter: Column.title.like("%\(searchTitle)%"),
+                order: [videoSortType.dbOrder()]
+            )
+            .map { $0.toVideo() }
         }
         videoVms = videos.map {
             VideoPreviewView.ViewModel.from(video: $0)
@@ -593,7 +605,8 @@ struct ContentView: View {
         guard let videoIds = playlists.safeValue(index: curPlaylistIndex)?.videoIdList() else { return }
         videoVms = DBManager.share.search(
             type: .video,
-            filter: videoIds.contains(Column.id)
+            filter: videoIds.contains(Column.id),
+            order: [videoSortType.dbOrder()]
         ).map { VideoPreviewView.ViewModel.from(video: $0.toVideo()) }
     }
 

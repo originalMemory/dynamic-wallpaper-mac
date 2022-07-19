@@ -92,6 +92,39 @@ class Monitor {
     }
 }
 
+enum VideoSortType: String, Codable, CaseIterable {
+    case addTimeAsc
+    case addTimeDesc
+    case titleAsc
+    case titleDesc
+
+    func text() -> String {
+        switch self {
+        case .addTimeAsc:
+            return "添加时间顺序"
+        case .addTimeDesc:
+            return "添加时间逆序"
+        case .titleAsc:
+            return "名称顺序"
+        case .titleDesc:
+            return "名称逆序"
+        }
+    }
+
+    func dbOrder() -> Expressible {
+        switch self {
+        case .addTimeAsc:
+            return rowid.asc
+        case .addTimeDesc:
+            return rowid.desc
+        case .titleAsc:
+            return Column.title.asc
+        case .titleDesc:
+            return Column.title.desc
+        }
+    }
+}
+
 enum PlayLoopType: String, Codable, CaseIterable {
     case order
     case random
