@@ -326,7 +326,6 @@ extension DBManager {
                 Column.volume <- item.volume,
                 Column.updateTime <- Date.now
             ))
-            debugPrint("更新的条数为：\(count)")
         } catch {
             debugPrint("更新出错：\(error)")
         }
