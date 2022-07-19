@@ -52,7 +52,7 @@ struct ContentView: View {
     @State private var videoSortType: VideoSortType = .addTimeDesc
 
     init() {
-        videoVms = DBManager.share.search(type: .video).map {
+        videoVms = DBManager.share.search(type: .video, order: [VideoSortType.addTimeDesc.dbOrder()]).map {
             VideoPreviewView.ViewModel.from(video: $0.toVideo())
         }
         screenInfos = NSScreen.screens.map { screen in
@@ -94,13 +94,7 @@ struct ContentView: View {
                 .labelsHidden()
                 .pickerStyle(SegmentedPickerStyle())
                 .onChange(of: showModeIndex) { index in
-                    switch MiddleShowType.allCases[index] {
-                    case .allVideo:
-                        searchVideo()
-                    case .playlist:
-                        videoVms.removeAll()
-                        refreshPlaylistVideo()
-                    }
+                    refreshVideo()
                 }
                 .padding(.top, 10).frame(width: 250)
                 Divider().padding(.horizontal, Metric.horizontalMargin)
@@ -113,16 +107,12 @@ struct ContentView: View {
                     resetVideoSelectStatus(value: !allSelected)
                 } onSortChange: { type in
                     videoSortType = type
-                    if curShowMode() == .allVideo {
-                        searchVideo()
-                    } else {
-                        refreshPlaylistVideo()
-                    }
+                    refreshVideo()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: VideoImportIndexNotification)) { output in
                     if curShowMode() == .allVideo {
                         DispatchQueue.main.async {
-                            searchVideo()
+                            refreshVideo()
                         }
                     }
                 }
@@ -148,10 +138,10 @@ struct ContentView: View {
                     selectImportVideoPaths()
                 }
                 TextField("输入搜索条件", text: $searchTitle).frame(width: 100).onSubmit {
-                    searchVideo()
+                    refreshVideo()
                 }
                 Button("搜索") {
-                    searchVideo()
+                    refreshVideo()
                 }
                 Spacer()
             case .playlist:
@@ -187,7 +177,7 @@ struct ContentView: View {
         }
         .labelsHidden().onChange(of: curPlaylistIndex) { index in
             if curShowMode() == .playlist {
-                refreshPlaylistVideo()
+                refreshVideo()
             }
         }
     }
@@ -215,11 +205,13 @@ struct ContentView: View {
                         } else {
                             SelectPlayListView(data: playlists) { id in
                                 addOrDelVideoToPlaylist(isAdd: true, playlistId: id)
-                            }.showInNewWindow(title: "选择播放列表")
+                            }
+                            .showInNewWindow(title: "选择播放列表")
                         }
                     }) { tagId in
                         addOrDelVideoToPlaylist(isAdd: false, playlistId: tagId)
-                    }.alert(isPresented: $showNoPlaylistAlert) {
+                    }
+                    .alert(isPresented: $showNoPlaylistAlert) {
                         Alert(title: Text("没有播放列表！"))
                     }
                 }
@@ -362,7 +354,8 @@ struct ContentView: View {
                                     var tags = video.tags
                                     tags.append(text)
                                     updateVideoTags(videoId: video.id, tags: tags)
-                                }.showInNewWindow(title: "添加标签")
+                                }
+                                .showInNewWindow(title: "添加标签")
                             }) { index in
                                 var tags = video.tags
                                 tags.remove(at: index)
@@ -429,7 +422,8 @@ struct ContentView: View {
                 var newVm = VideoPreviewView.ViewModel.from(video: video)
                 newVm.isSelected = true
                 videoVms[index] = newVm
-            }.show()
+            }
+            .show()
         } label: {
             // TODO: 点击区域优化，现在没有文字的区域点击无响应
             ZStack(alignment: .bottomTrailing) {
@@ -541,17 +535,25 @@ struct ContentView: View {
         return videoExtensions.contains(url.pathExtension.lowercased())
     }
 
-    private func searchVideo() {
+    private func refreshVideo() {
         let videos: [Video]
-        if searchTitle.isEmpty {
-            videos = DBManager.share.search(type: .video, order: [videoSortType.dbOrder()]).map { $0.toVideo() }
-        } else {
-            videos = DBManager.share.search(
-                type: .video,
-                filter: Column.title.like("%\(searchTitle)%"),
-                order: [videoSortType.dbOrder()]
-            )
-            .map { $0.toVideo() }
+        let order = [videoSortType.dbOrder()]
+        switch curShowMode() {
+        case .allVideo:
+            if searchTitle.isEmpty {
+                videos = DBManager.share.search(type: .video, order: order).map { $0.toVideo() }
+            } else {
+                videos = DBManager.share.search(
+                    type: .video,
+                    filter: Column.title.like("%\(searchTitle)%"),
+                    order: order
+                )
+                .map { $0.toVideo() }
+            }
+        case .playlist:
+            guard let videoIds = playlists.safeValue(index: curPlaylistIndex)?.videoIdList() else { return }
+            videos = DBManager.share.search(type: .video, filter: videoIds.contains(Column.id), order: order)
+                .map { $0.toVideo() }
         }
         videoVms = videos.map {
             VideoPreviewView.ViewModel.from(video: $0)
@@ -601,15 +603,6 @@ struct ContentView: View {
         }
     }
 
-    private func refreshPlaylistVideo() {
-        guard let videoIds = playlists.safeValue(index: curPlaylistIndex)?.videoIdList() else { return }
-        videoVms = DBManager.share.search(
-            type: .video,
-            filter: videoIds.contains(Column.id),
-            order: [videoSortType.dbOrder()]
-        ).map { VideoPreviewView.ViewModel.from(video: $0.toVideo()) }
-    }
-
     // MARK: - 播放列表包含的视频增删
 
     private func addOrDelVideoToPlaylist(isAdd: Bool, playlistId: Int) {
@@ -626,7 +619,7 @@ struct ContentView: View {
         playlists[curPlaylistIndex] = playlist
         DBManager.share.updatePlaylist(id: playlist.id, item: playlist)
         if curShowMode() == .playlist {
-            refreshPlaylistVideo()
+            refreshVideo()
         } else if selectedIds.count > 1 {
             resetVideoSelectStatus(value: false)
         }
