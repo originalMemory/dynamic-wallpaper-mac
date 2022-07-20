@@ -575,8 +575,10 @@ struct ContentView: View {
                 DBManager.share.updatePlaylist(id: playlist.id, item: playlist)
             }
             DBManager.share.delete(type: .video, id: videoId)
+            VideoHelper.share.delVideo(id: videoId)
         }
         videoVms.removeAll { vm in videoIds.contains(vm.id) }
+        refreshPlaylist()
     }
 
     // MARK: - 播放列表管理
@@ -584,23 +586,27 @@ struct ContentView: View {
     private func createPlaylist(name: String) {
         let playlist = Playlist(id: 0, title: name, videoIds: "")
         _ = DBManager.share.insertPlaylist(item: playlist)
-        playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
+        refreshPlaylist()
     }
 
     private func updatePlaylistName(id: Int, name: String) {
         guard var playlist = DBManager.share.getPlaylist(id: id) else { return }
         playlist.title = name
         DBManager.share.updatePlaylist(id: id, item: playlist)
-        playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
+        refreshPlaylist()
     }
 
     private func delPlaylist() {
         guard let playlistId = playlists.safeValue(index: curPlaylistIndex)?.id else { return }
         DBManager.share.delete(type: .playlist, id: playlistId)
-        playlists.remove(at: curPlaylistIndex)
+        refreshPlaylist()
         if curPlaylistIndex >= playlists.count {
             curPlaylistIndex -= 1
         }
+    }
+
+    private func refreshPlaylist() {
+        playlists = DBManager.share.search(type: .playlist).map { $0.toPlaylist() }
     }
 
     // MARK: - 播放列表包含的视频增删
@@ -611,13 +617,15 @@ struct ContentView: View {
         var videoIds = playlist.videoIdList()
         if isAdd {
             videoIds += selectedIds
-            videoIds = Array(Set(videoIds))
+            videoIds = Array(Set(videoIds)).sorted(by: >)
+            curBelongPlaylists.append(playlist)
         } else {
             videoIds.removeAll(where: { id in selectedIds.contains(id) })
+            curBelongPlaylists.removeAll { $0.id == playlistId }
         }
         playlist.videoIds = videoIds.map { String($0) }.joined(separator: ",")
-        playlists[curPlaylistIndex] = playlist
         DBManager.share.updatePlaylist(id: playlist.id, item: playlist)
+        refreshPlaylist()
         if curShowMode() == .playlist {
             refreshVideo()
         } else if selectedIds.count > 1 {

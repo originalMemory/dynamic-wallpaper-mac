@@ -170,4 +170,22 @@ class VideoHelper {
             return nil
         }
     }
+
+    func delVideo(id: Int) {
+        guard let saveDir = getCacheDir()?.appendPathComponent(String(id)) else {
+            return
+        }
+        print("删除视频目录：\(saveDir)")
+        do {
+            let manager = FileManager.default
+            let files = manager.subpaths(atPath: saveDir) ?? []
+            for file in files {
+                try manager.removeItem(atPath: saveDir + "/\(file)") // 需要拼接路径！！
+            }
+            try manager.removeItem(atPath: saveDir)
+            print("删除视频目录成功")
+        } catch {
+            print("删除视频目录失败：\(error)")
+        }
+    }
 }
