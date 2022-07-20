@@ -1,10 +1,13 @@
 PODS:
-  - GIFImage (0.0.4)
+  - AutoSQLiteSwift (0.0.10):
+    - SQLite.swift (~> 0.13)
+  - GIFImage (0.0.0)
   - SQLite.swift (0.13.3):
     - SQLite.swift/standard (= 0.13.3)
   - SQLite.swift/standard (0.13.3)
 
 DEPENDENCIES:
+  - AutoSQLiteSwift (from `AutoSQLiteSwift`)
   - GIFImage (from `GIFImage`)
   - SQLite.swift
 
@@ -13,13 +16,16 @@ SPEC REPOS:
     - SQLite.swift
 
 EXTERNAL SOURCES:
+  AutoSQLiteSwift:
+    :path: AutoSQLiteSwift
   GIFImage:
     :path: GIFImage
 
 SPEC CHECKSUMS:
-  GIFImage: 250526420d65bf93ebd92ece33406d8797433606
+  AutoSQLiteSwift: 7f588fe9493b29fefc2d1c0eaaa205b458a75a83
+  GIFImage: 769450a1b968a88b702a804366bcb57a853ad261
   SQLite.swift: 903bfa3bc9ab06345fdfbb578e34f47cfcf417da
 
-PODFILE CHECKSUM: b69b03fae14ae27440f8db7ec28b41d32d7e0e51
+PODFILE CHECKSUM: 3fabe9b58bef0bd6cf25318a3347e1efb061e859
 
 COCOAPODS: 1.11.3

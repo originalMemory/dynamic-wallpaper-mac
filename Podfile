@@ -8,6 +8,7 @@ target 'DynamicWallpaper' do
   # Pods for DynamicWallpaper
   pod 'SQLite.swift'
   pod 'GIFImage', :path => 'GIFImage'
+  pod 'AutoSQLiteSwift', :path => 'AutoSQLiteSwift'
 
   target 'DynamicWallpaperTests' do
     inherit! :search_paths
