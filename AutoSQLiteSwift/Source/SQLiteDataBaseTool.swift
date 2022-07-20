@@ -9,85 +9,86 @@
 import Foundation
 import SQLite
 
-
-//modify_future
+// modify_future
 /// 这个类的功能要逐渐去掉到没有
 
 /// 工具类
-open class SQLiteDataBaseTool: NSObject{
+open class SQLiteDataBaseTool: NSObject {
     /// 将原生的类型转换成sql类型
     ///
     /// - Parameter type: 原生类型
     /// - Returns: sql类型
-    public class func sqlType(_ nativeType : Any.Type)->String {
-        
+    public class func sqlType(_ nativeType: Any.Type) -> String {
         var returnString = ""
-        
-        if nativeType is Int.Type || nativeType is Int?.Type{
+
+        if nativeType is Int.Type || nativeType is Int?.Type {
             returnString = "INTEGER"
-        }else if nativeType is Float.Type || nativeType is Double.Type || nativeType is Float?.Type || nativeType is Double?.Type {
+        } else if nativeType is Float.Type || nativeType is Double.Type || nativeType is Float?
+            .Type || nativeType is Double?.Type
+        {
             returnString = "DOUBLE"
-        }else if nativeType is NSString.Type || nativeType is String.Type || nativeType is Character.Type || nativeType is NSString?.Type || nativeType is String?.Type || nativeType is Character?.Type {
+        } else if nativeType is NSString.Type || nativeType is String.Type || nativeType is Character
+            .Type || nativeType is NSString?.Type || nativeType is String?.Type || nativeType is Character?.Type
+        {
             returnString = "TEXT"
-        }else if nativeType is Bool.Type || nativeType is Bool?.Type {
+        } else if nativeType is Bool.Type || nativeType is Bool?.Type {
             returnString = "TINYINT"
-        }else{
+        } else {
             assert(true, "sqlType:不支持的类型")
         }
-        
+
         sqlitePrint("返回类型" + returnString)
         return returnString
     }
-    
+
     /// 移除字符串的最后一个字符
     ///
     /// - Parameter oldStr:未处理的字符串
     /// - Returns: 处理完的字符串
-    public class func removeLastStr(_ oldStr:String)->String{
+    public class func removeLastStr(_ oldStr: String) -> String {
         return String(oldStr[..<oldStr.index(before: oldStr.endIndex)])
     }
-    
+
     /// 移除字符串的最后一个key字符
     ///
     /// - Parameter oldStr:未处理的字符串
     /// - Parameter keyStr:需要移除的key
     /// - Returns: 处理完的字符串
-    public class func removeLast(_ oldStr:String,_ keyStr:String)->String{
+    public class func removeLast(_ oldStr: String, _ keyStr: String) -> String {
         let lastKey = String(oldStr.suffix(keyStr.count))
-        
+
         let isLastSmae = lastKey == keyStr
-        
+
         // 如果最后的字符串不是keyStr
-        if (!isLastSmae){
+        if !isLastSmae {
             return oldStr
         }
-        
+
         return String(oldStr.prefix(oldStr.count - keyStr.count))
     }
-    
-    
+
     /// 去掉空格
     ///
     /// - Parameter name: 处理完的字符串
-    public class func removeBlankSpace(_ name: String)->String{
+    public class func removeBlankSpace(_ name: String) -> String {
         var databaseName = name
-        
-        //包含空格的情况，去掉空格
+
+        // 包含空格的情况，去掉空格
         let blankSpaceStr = " "
-        if name.contains(blankSpaceStr){
-            databaseName = databaseName.replacingOccurrences(of:blankSpaceStr, with:"")
+        if name.contains(blankSpaceStr) {
+            databaseName = databaseName.replacingOccurrences(of: blankSpaceStr, with: "")
         }
-        
+
         return databaseName
     }
-    
+
     /// 获取当前时间的str
     ///
     /// - Returns: 当前时间的str
     public class func dateNowAsString() -> String {
         let nowDate = Date()
         let timeInterval = nowDate.timeIntervalSince1970 * 1000
-        let timeString: String = String(timeInterval)
+        let timeString = String(timeInterval)
         return timeString
     }
 }
