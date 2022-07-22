@@ -31,10 +31,7 @@ class VideoHelper {
                 let path = filePaths[i]
                 do {
                     let md5 = self.md5File(url: URL(fileURLWithPath: path)) ?? ""
-                    if DBManager.share.exist(
-                        type: .video,
-                        filter: Column.md5 == md5
-                    ) {
+                    if DBManager.share.exist(type: .video, sqlWhere: "verify='\(md5)'") {
                         debugPrint("文件已存在 \(path)")
                         self.postProgressUpdate(index: i)
                         continue
@@ -57,43 +54,38 @@ class VideoHelper {
                     {
                         let title: String = (jsonObj["title"] as? String) ?? ""
                         let desc: String? = jsonObj["description"] as? String
-                        let model = Video(
-                            id: 0,
-                            title: title,
-                            desc: desc,
-                            tags: (jsonObj["tags"] as? [String] ?? []).joined(separator: ","),
-                            preview: jsonObj["preview"] as? String,
-                            file: filename,
-                            md5: md5,
-                            wallpaperEngineId: jsonObj["workshopid"] as? String,
-                            contentrating: jsonObj["workshopid"] as? String
-                        )
-                        guard let rowId = DBManager.share.insertVideo(item: model) else { continue }
-                        let saveDir = cacheDir.appendPathComponent(String(rowId))
+                        let model = Video()
+                        model.title = title
+                        model.desc = desc ?? ""
+                        model.tags = jsonObj["tags"] as? [String] ?? []
+                        model.source = "wallpaperEngine"
+                        model.preview = jsonObj["preview"] as? String ?? ""
+                        model.file = filename
+                        model.verify = md5
+                        model.extra = [
+                            "workshopid": jsonObj["workshopid"],
+                            "workshopurl": jsonObj["workshopurl"],
+                            "contentrating": jsonObj["contentrating"]
+                        ]
+                        DBManager.share.insert(type: .video, obj: model)
+                        let saveDir = cacheDir.appendPathComponent(md5)
                         self.ensureDir(path: saveDir)
                         try FileManager.default.copyItem(atPath: path, toPath: saveDir.appendPathComponent(filename))
-                        if let previewName = model.preview,
-                           FileManager.default.fileExists(atPath: curDirPath.appendPathComponent(previewName))
+                        if !model.preview.isEmpty,
+                           FileManager.default.fileExists(atPath: curDirPath.appendPathComponent(model.preview))
                         {
                             try FileManager.default.copyItem(
-                                atPath: curDirPath.appendPathComponent(previewName),
-                                toPath: saveDir.appendPathComponent(previewName)
+                                atPath: curDirPath.appendPathComponent(model.preview),
+                                toPath: saveDir.appendPathComponent(model.preview)
                             )
                         }
                     } else {
-                        let model = Video(
-                            id: 0,
-                            title: title,
-                            desc: "",
-                            tags: "",
-                            preview: "",
-                            file: filename,
-                            md5: md5,
-                            wallpaperEngineId: nil,
-                            contentrating: nil
-                        )
-                        guard let rowId = DBManager.share.insertVideo(item: model) else { continue }
-                        let saveDir = cacheDir.appendPathComponent(String(rowId))
+                        let model = Video()
+                        model.title = title
+                        model.file = filename
+                        model.verify = md5
+                        DBManager.share.insert(type: .video, obj: model)
+                        let saveDir = cacheDir.appendPathComponent(md5)
                         self.ensureDir(path: saveDir)
                         try FileManager.default.copyItem(atPath: path, toPath: saveDir.appendPathComponent(filename))
                     }
@@ -114,18 +106,19 @@ class VideoHelper {
         getCacheDir()?.appendPathComponent("\(videoId)".appendPathComponent(filename ?? ""))
     }
 
-    private func getCacheDir() -> String? {
+    func getCacheDir() -> String? {
         guard let cacheDirPath = NSSearchPathForDirectoriesInDomains(
             FileManager.SearchPathDirectory.documentDirectory,
             FileManager.SearchPathDomainMask.userDomainMask,
             true
-        ).last else {
+        ).last
+        else {
             return nil
         }
         return cacheDirPath.appendPathComponent("video")
     }
 
-    private func ensureDir(path: String) {
+    func ensureDir(path: String) {
         if FileManager.default.fileExists(atPath: path) {
             return
         }

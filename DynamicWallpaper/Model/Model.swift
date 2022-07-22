@@ -4,63 +4,53 @@
 
 import Foundation
 import SQLite
+import AutoSQLiteSwift
+import HandyJSON
 
-struct Video {
-    let id: Int
-    var title: String
-    var desc: String?
-    var tags: String?
-    let preview: String?
-    let file: String
-    let md5: String
-    /// 对应 Wallpaper Engine 软件里的 id
-    var wallpaperEngineId: String?
-    var contentrating: String?
+class Video: SQLiteModel {
+    var pkid: Int = 0 // PRIMARY KEY ID
+    var title: String = ""
+    var desc: String = ""
+    var tags: [String] = []
+    var preview: String = ""
+    var file: String = ""
+    var source: String = ""
+    var verify: String = ""
+    var width: Int = 0
+    var height: Int = 0
+    var extra: [String: Any] = [:]
 
     func fullFilePath() -> String? {
-        VideoHelper.share.getFullPath(videoId: id, filename: file)
+        VideoHelper.share.getFullPath(videoId: pkid, filename: file)
+    }
+
+    func fullPreviewPath() -> String? {
+        VideoHelper.share.getFullPath(videoId: pkid, filename: preview)
     }
 }
 
-struct Playlist: Hashable {
-    let id: Int
-    var title: String
-    var videoIds: String
+class Playlist: SQLiteModel {
+    var pkid: Int = 0
+    var title: String = ""
+    var videoIds: [Int] = []
 
-    func videoIdList() -> [Int] {
-        videoIds.components(separatedBy: ",").compactMap { Int($0) }
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
+    func videoIdInStr() -> String {
+        videoIds.map { String($0) }.joined(separator: ",")
     }
 }
 
-class ScreenPlayConfig {
-    let id: Int
-    let screenHash: Int
+class ScreenPlayConfig: SQLiteModel {
+    var pkid: Int = 0
+    var screenHash: Int = 0
     var playlistId: Int?
-    var periodInMin: Int
-    var curIndex: Int
-    var loopType: PlayLoopType
-    var volume: Double
+    var periodInMin: Int = 5
+    var curIndex: Int = 0
+    var loopType: PlayLoopType = .order
+    var volume: Double = 0
 
-    init(
-        id: Int = 0,
-        screenHash: Int,
-        playlistId: Int? = nil,
-        periodInMin: Int,
-        curIndex: Int = -1,
-        loopType: PlayLoopType = PlayLoopType.order,
-        volume: Double = 0
-    ) {
-        self.id = id
+    convenience init(screenHash: Int) {
+        self.init()
         self.screenHash = screenHash
-        self.playlistId = playlistId
-        self.periodInMin = periodInMin
-        self.curIndex = curIndex
-        self.loopType = loopType
-        self.volume = volume
     }
 }
 
@@ -111,16 +101,16 @@ enum VideoSortType: String, Codable, CaseIterable {
         }
     }
 
-    func dbOrder() -> Expressible {
+    func dbOrder() -> Order {
         switch self {
         case .addTimeAsc:
-            return rowid.asc
+            return Order(key: "rowid", type: .asc)
         case .addTimeDesc:
-            return rowid.desc
+            return Order(key: "rowid", type: .desc)
         case .titleAsc:
-            return Column.title.asc
+            return Order(key: "title", type: .asc)
         case .titleDesc:
-            return Column.title.desc
+            return Order(key: "title", type: .desc)
         }
     }
 }
@@ -134,36 +124,4 @@ struct PlayConfig: Codable {
     /// 间隔时间，分钟为单位
     let periodInMin: Int
     let loopType: PlayLoopType
-}
-
-extension Row {
-    func toPlaylist() -> Playlist {
-        Playlist(id: self[Column.id], title: self[Column.title], videoIds: self[Column.videoIds])
-    }
-
-    func toVideo() -> Video {
-        Video(
-            id: self[Column.id],
-            title: self[Column.title],
-            desc: self[Column.desc],
-            tags: self[Column.tags],
-            preview: self[Column.preview],
-            file: self[Column.file],
-            md5: self[Column.md5],
-            wallpaperEngineId: self[Column.wallpaperEngineId],
-            contentrating: self[Column.contentrating]
-        )
-    }
-
-    func toScreenPlayConfig() -> ScreenPlayConfig {
-        ScreenPlayConfig(
-            id: self[Column.id],
-            screenHash: self[Column.screenHash],
-            playlistId: self[Column.playlistId],
-            periodInMin: self[Column.periodInMin],
-            curIndex: self[Column.curIndex],
-            loopType: PlayLoopType(rawValue: self[Column.loopType]) ?? PlayLoopType.order,
-            volume: self[Column.volume]
-        )
-    }
 }

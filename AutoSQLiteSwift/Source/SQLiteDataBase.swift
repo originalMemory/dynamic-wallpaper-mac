@@ -8,6 +8,7 @@
 
 import Foundation
 import SQLite
+import HandyJSON
 
 public func sqlitePrint(
     debug: Any...,
@@ -110,11 +111,11 @@ open class SQLiteDataBase: NSObject {
     // MARK: - 查询数据
 
     public class func selectAll(fromTable tableName: String) -> [[String: AnyObject]] {
-        return selectAll_statement(fromTable: tableName)
+        selectAll_statement(fromTable: tableName)
     }
 
     public class func select(_ object: SQLiteModel, fromTable tableName: String) -> [[String: AnyObject]]? {
-        return select_statement(object, fromTable: tableName)
+        select_statement(object, fromTable: tableName)
     }
 
     // MARK: - 删除数据
@@ -137,7 +138,7 @@ open class SQLiteDataBase: NSObject {
     ///
     /// - Parameters:
     ///   - tableName: 创建的表名
-    ///   - mirrorModels:转换完的model
+    ///   - sqlMirrorModel:转换完的model
     public func createTable(_ tableName: String, sqlMirrorModel: SQLMirrorModel) {
         createTable_statement(tableName, sqlMirrorModel: sqlMirrorModel)
     }
@@ -167,11 +168,29 @@ open class SQLiteDataBase: NSObject {
     ///   - sqlWhere: sql查询语句
     /// - Returns: 返回结果
     public func select(fromTable tableName: String, sqlWhere: String? = nil) -> [[String: AnyObject]] {
-        return select_statementWithSQL(fromTable: tableName, sqlWhere: sqlWhere)
+        select_statementWithSQL(fromTable: tableName, sqlWhere: sqlWhere)
+    }
+
+    public func selectModel<T: HandyJSON>(fromTable tableName: String, sqlWhere: String? = nil) -> [T] {
+        let dis = select(fromTable: tableName, sqlWhere: sqlWhere)
+        var res: [T] = []
+        for di in dis {
+            var finalDi: [String: Any] = di
+            for (key, value) in di {
+                guard let stringValue = value as? String,
+                      stringValue.contains("\"") || stringValue.contains("["),
+                      let json = stringValue.toJson()
+                else { continue }
+                finalDi[key] = json
+            }
+            guard let t = T.deserialize(from: finalDi) else { continue }
+            res.append(t)
+        }
+        return res
     }
 
     public func select(_ object: SQLiteModel, fromTable tableName: String) -> [[String: AnyObject]]? {
-        return select_statement(object, fromTable: tableName)
+        select_statement(object, fromTable: tableName)
     }
 
     /// 删除table里面的字段
@@ -280,8 +299,8 @@ public extension SQLiteDataBase {
             return
         }
 
-        for sqlPropertie in sqlMirrorModel.sqlProperties {
-            let key = sqlPropertie.key
+        for sqlProperty in sqlMirrorModel.sqlProperties {
+            let key = sqlProperty.key
 
             guard key == sqlMirrorModel.sqlPrimaryKey else {
                 continue
@@ -289,7 +308,7 @@ public extension SQLiteDataBase {
 
             sqliteDataBase.delete_statement(
                 fromTable: tableName,
-                sqlWhere: "\(key) = '\(String(describing: sqlPropertie.value))'"
+                sqlWhere: "\(key) = '\(String(describing: sqlProperty.value))'"
             )
         }
     }
@@ -327,9 +346,12 @@ public extension SQLiteDataBase {
 
         // 拼接动态字段
         var keyStr = ""
-        for sqlPropertie in sqlMirrorModel.sqlProperties {
-            let key = sqlPropertie.key
-            let type = sqlPropertie.type
+        for sqlProperty in sqlMirrorModel.sqlProperties {
+            let key = sqlProperty.key
+            if key == primaryKey {
+                continue
+            }
+            let type = sqlProperty.type
 
             keyStr += "\(key) \(SQLiteDataBaseTool.sqlType(type)),"
         }
@@ -345,8 +367,8 @@ public extension SQLiteDataBase {
         execute(sqlStr)
     }
 
-    func isExisitObject(_ object: SQLiteModel, tableName: String) -> (Bool, String?) {
-        guard database != nil else {
+    func isExistObject(_ object: SQLiteModel, tableName: String) -> (Bool, String?) {
+        guard database != nil, object.primaryValue() > 0 else {
             return (false, nil)
         }
 
@@ -355,7 +377,7 @@ public extension SQLiteDataBase {
          let isExists = try database?.scalar(sqlStr) as! Int64 > 0
          */
 
-        var whereStr = getObjectValuesStr(object, tableName: tableName)
+        var whereStr = getPrimaryWhere(object, tableName: tableName)
 
         // 可以使用下面的函数，不使用效率高
         guard let results = select_statement(object, fromTable: tableName) else {
@@ -370,62 +392,14 @@ public extension SQLiteDataBase {
         return (true, whereStr)
     }
 
-    func getObjectValuesStr(_ object: SQLiteModel, tableName: String) -> String? {
-        if tableExists(tableName: tableName) == false {
-            return nil
-        }
-
+    func getPrimaryWhere(_ object: SQLiteModel, tableName: String) -> String? {
         guard let sqlMirrorModel = SQLMirrorModel.operateByMirror(object: object) else {
             return nil
         }
-
-        createTable_statement(tableName, sqlMirrorModel: sqlMirrorModel)
-
         let primaryKey = sqlMirrorModel.sqlPrimaryKey
-        // sqlitePrint("primaryKey:\(String(describing: primaryKey))")
-
-        let andKey = " AND "
-        var whereStr: String = ""
-
-        let searchKeys = object.uniqueKeys()
-        if searchKeys != nil, searchKeys!.count > 0 {
-            // searchKey作为查询条件
-            for searchKey in searchKeys! {
-                for sqlPropertie in sqlMirrorModel.sqlProperties {
-                    let key = sqlPropertie.key
-
-                    if key != searchKey {
-                        continue
-                    }
-
-                    let value = sqlPropertie.value
-                    let isNil = valueIsNil(value)
-
-                    if isNil == true {
-                        continue
-                    }
-
-                    whereStr += "\(key) = '\(value!)'\(andKey)"
-                }
-            }
-        } else {
-            for sqlPropertie in sqlMirrorModel.sqlProperties {
-                let key = sqlPropertie.key
-                let value = sqlPropertie.value
-
-                // sqlitePrint("key:\(key),value:\(value)")
-                if key == primaryKey, (value as! NSNumber).intValue == 0 {
-                    continue
-                }
-
-                whereStr += "\(key) = '\(value!)'\(andKey)"
-            }
-        }
-
-        // sqlitePrint("whereStr:\(whereStr)")
-        whereStr = SQLiteDataBaseTool.removeLast(whereStr, andKey)
-
-        return whereStr
+        guard let primaryValue = sqlMirrorModel.sqlProperties.first { model in model.key == primaryKey }?.value
+        else { return nil }
+        return "\(primaryKey) = \(primaryValue)"
     }
 
     func insert_statement(_ object: SQLiteModel, intoTable tableName: String) {
@@ -446,43 +420,50 @@ public extension SQLiteDataBase {
         var keyStr = ""
         var valueStr = ""
 
-        let (isExisit, whereStr) = isExisitObject(object, tableName: tableName)
-        for sqlPropertie in sqlMirrorModel.sqlProperties {
-            let key = sqlPropertie.key
-            guard let value = sqlPropertie.value else {
+        let (isExist, whereStr) = isExistObject(object, tableName: tableName)
+        for sqlProperty in sqlMirrorModel.sqlProperties {
+            let key = sqlProperty.key
+            guard let value = sqlProperty.value else {
                 continue
             }
 
-            let isNil = valueIsNil(sqlPropertie.value)
+            let isNil = valueIsNil(sqlProperty.value)
 
             if isNil == true {
                 continue
             }
 
-            if isExisit == true { // 存在
+            let s1 = "\(value)"
+            let strValue = "\(value)".replacingOccurrences(of: "'", with: "''")
+
+            if strValue.contains("游云鲸梦") {
+                let d = 3
+            }
+
+            if isExist == true { // 存在
                 /// 如果字段不存在，则创建
                 addColumnIfNoExist_statement(
                     key,
                     tableName: tableName,
-                    type: SQLiteDataBaseTool.sqlType(sqlPropertie.type)
+                    type: SQLiteDataBaseTool.sqlType(sqlProperty.type)
                 )
 
                 valueStr = whereStr ?? ""
 
                 // tmpStr
-                let tmpStr = "\(key) = '\(value)' ,"
+                let tmpStr = "\(key) = '\(strValue)' ,"
 
                 keyStr += tmpStr
             } else { // 不存在
                 keyStr += (key + " ,")
-                valueStr += "'\(value)' ,"
+                valueStr += "'\(strValue)' ,"
             }
         }
 
         keyStr = SQLiteDataBaseTool.removeLastStr(keyStr)
 
         var sqlStr = ""
-        if isExisit == true { // 存在
+        if isExist == true { // 存在
             sqlStr = "UPDATE \(tableName) SET \(keyStr) WHERE \(valueStr)"
         } else { // 不存在
             valueStr = SQLiteDataBaseTool.removeLastStr(valueStr)
@@ -511,7 +492,7 @@ public extension SQLiteDataBase {
     }
 
     func select_statement(_ object: SQLiteModel, fromTable tableName: String) -> [[String: AnyObject]]? {
-        guard let whereStr = getObjectValuesStr(object, tableName: tableName) else {
+        guard let whereStr = getPrimaryWhere(object, tableName: tableName) else {
             return nil
         }
 
@@ -539,7 +520,7 @@ public extension SQLiteDataBase {
     }
 
     func delete_statement(_ object: SQLiteModel, fromTable tableName: String) {
-        let whereStr = getObjectValuesStr(object, tableName: tableName)
+        let whereStr = getPrimaryWhere(object, tableName: tableName)
 
         if let whereStr = whereStr {
             delete_statement(fromTable: tableName, sqlWhere: whereStr)
@@ -606,7 +587,9 @@ public extension SQLiteDataBase {
             let isExists = try database?.scalar(
                 "SELECT EXISTS (SELECT * FROM sqlite_master WHERE type = 'table' AND name = ?)", tableName
             ) as! Int64 > 0
-            sqlitePrint("数据库表:\(isExists == true ? "存在" : "不存在")")
+            if !isExists {
+                sqlitePrint("数据库表: 不存在")
+            }
             return isExists
         } catch {
             sqlitePrint(error)
@@ -617,7 +600,7 @@ public extension SQLiteDataBase {
     /// 执行sql语句
     ///
     /// - Parameters:
-    ///   - sqrStr: sql语句
+    ///   - sqlStr: sql语句
     ///   - finish: 结束的闭包
     ///   - fail: 失败的闭包
     func execute(_ sqlStr: String, finish: () -> Void = {}, fail: () -> Void = {}) {
@@ -643,12 +626,12 @@ public extension SQLiteDataBase {
             let results = try database?.prepare(sqlStr)
 
             if let results = results {
-                let colunmSize = results.columnNames.count
+                let columnSize = results.columnNames.count
 
                 for row in results {
                     var record: [String: AnyObject] = [:]
 
-                    for i in 0..<colunmSize {
+                    for i in 0..<columnSize {
                         let value = row[i]
                         let key = results.columnNames[i] as String
 

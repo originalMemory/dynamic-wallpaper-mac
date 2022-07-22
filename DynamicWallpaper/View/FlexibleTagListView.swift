@@ -13,7 +13,7 @@ struct Tag: Hashable {
     let id: Int
 
     static func fromPlaylist(_ playlists: [Playlist]) -> [Tag] {
-        appendAdd(tags: playlists.map { item in Tag(name: item.title, id: item.id) })
+        appendAdd(tags: playlists.map { item in Tag(name: item.title, id: item.pkid) })
     }
 
     static func appendAdd(tags: [Tag]) -> [Tag] {

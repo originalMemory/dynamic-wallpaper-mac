@@ -16,7 +16,7 @@ import SQLite
 open class SQLiteDataBaseTool: NSObject {
     /// 将原生的类型转换成sql类型
     ///
-    /// - Parameter type: 原生类型
+    /// - Parameter nativeType: 原生类型
     /// - Returns: sql类型
     public class func sqlType(_ nativeType: Any.Type) -> String {
         var returnString = ""
@@ -33,6 +33,8 @@ open class SQLiteDataBaseTool: NSObject {
             returnString = "TEXT"
         } else if nativeType is Bool.Type || nativeType is Bool?.Type {
             returnString = "TINYINT"
+        } else if nativeType is [String: Any].Type || nativeType is [Int].Type || nativeType is [String].Type {
+            returnString = "TEXT"
         } else {
             assert(true, "sqlType:不支持的类型")
         }
@@ -57,10 +59,10 @@ open class SQLiteDataBaseTool: NSObject {
     public class func removeLast(_ oldStr: String, _ keyStr: String) -> String {
         let lastKey = String(oldStr.suffix(keyStr.count))
 
-        let isLastSmae = lastKey == keyStr
+        let isLastSame = lastKey == keyStr
 
         // 如果最后的字符串不是keyStr
-        if !isLastSmae {
+        if !isLastSame {
             return oldStr
         }
 

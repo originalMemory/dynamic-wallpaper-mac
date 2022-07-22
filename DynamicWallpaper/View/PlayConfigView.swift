@@ -58,12 +58,11 @@ struct PlayConfigView: View {
                         existConfig.volume = saveVolume
                         config = existConfig
                     } else {
-                        config = ScreenPlayConfig(
-                            screenHash: screenHash,
-                            periodInMin: periodInMin,
-                            loopType: type,
-                            volume: saveVolume
-                        )
+                        config = ScreenPlayConfig()
+                        config.screenHash = screenHash
+                        config.periodInMin = periodInMin
+                        config.loopType = type
+                        config.volume = saveVolume
                     }
                     WallpaperManager.share.addOrUpdateConfig(config: config)
                     NSApplication.shared.keyWindow?.close()

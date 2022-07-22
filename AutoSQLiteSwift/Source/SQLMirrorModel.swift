@@ -47,15 +47,39 @@ open class SQLMirrorModel: NSObject {
                 if object.primaryKey() == key {
                     isPrimaryKey = true
                 }
+                let subjectType = vMirror.subjectType
+                let mirrorModel: SQLPropertyModel
+                if value is [String: Any] {
+                    mirrorModel = SQLPropertyModel(
+                        type: subjectType,
+                        key: key,
+                        value: (value as! [String: Any]).toJsonString() as AnyObject,
+                        isPrimaryKey: isPrimaryKey
+                    )
+                } else if value is [String] {
+                    mirrorModel = SQLPropertyModel(
+                        type: subjectType,
+                        key: key,
+                        value: (value as! [String]).toJsonString() as AnyObject,
+                        isPrimaryKey: isPrimaryKey
+                    )
+                } else if value is [Int] {
+                    mirrorModel = SQLPropertyModel(
+                        type: subjectType,
+                        key: key,
+                        value: (value as! [Int]).toJsonString() as AnyObject,
+                        isPrimaryKey: isPrimaryKey
+                    )
+                } else {
+                    mirrorModel = SQLPropertyModel(
+                        type: subjectType,
+                        key: key,
+                        value: value as AnyObject,
+                        isPrimaryKey: isPrimaryKey
+                    )
+                }
 
-                let mirrorModel = SQLPropertyModel(
-                    type: vMirror.subjectType,
-                    key: key,
-                    value: value as AnyObject,
-                    isPrimaryKey: isPrimaryKey
-                )
-
-                guard let ignoreKeys = object.ignoreKeys(), ignoreKeys.contains(key) == false else {
+                if let ignoreKeys = object.ignoreKeys(), ignoreKeys.contains(key) {
                     continue
                 }
 

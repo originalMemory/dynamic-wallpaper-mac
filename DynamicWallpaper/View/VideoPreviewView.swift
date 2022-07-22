@@ -20,13 +20,13 @@ struct VideoPreviewView: View {
         var isSelected: Bool = false
 
         static func from(video: Video) -> ViewModel {
-            return VideoPreviewView.ViewModel(
-                id: video.id,
+            VideoPreviewView.ViewModel(
+                id: video.pkid,
                 title: video.title,
                 desc: video.desc,
-                tags: video.tags?.components(separatedBy: ",") ?? [],
+                tags: video.tags,
                 file: video.fullFilePath() ?? "",
-                previewPath: VideoHelper.share.getFullPath(videoId: video.id, filename: video.preview)
+                previewPath: video.fullPreviewPath()
             )
         }
 

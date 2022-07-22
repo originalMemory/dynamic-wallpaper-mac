@@ -12,13 +12,12 @@ Pod::Spec.new do |s|
 
   s.source           = { :git => 'https://github.com/TonyReet/AutoSQLite.swift.git', :tag => s.version.to_s}
   
-  s.ios.deployment_target = '8.0'
+  s.platform = :osx
   s.osx.deployment_target = "10.10"
-  s.swift_version = '5.0'
-
 
   s.source_files = 'Source/*.swift'
 
   s.dependency 'SQLite.swift', '~> 0.13'
+  s.dependency 'HandyJSON', '~> 5.0.2'
 
 end

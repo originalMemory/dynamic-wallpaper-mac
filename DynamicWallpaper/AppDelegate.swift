@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Cocoa
+import AutoSQLiteSwift
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -18,6 +19,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         WallpaperManager.share.setup()
 
         showSettingWC()
+
+        SQLiteManager.shared.printDebug = true
     }
 
     enum ItemType: Int {

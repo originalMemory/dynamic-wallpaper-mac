@@ -109,12 +109,9 @@ class WallpaperManager {
     var screenHash2Timer = [Int: Timer]()
 
     private func loadConfig() {
-        let hashes = NSScreen.screens.map { $0.hash }
+        let hashStr = NSScreen.screens.map { String($0.hash) }.joined(separator: ",")
         DBManager.share.delete(type: .screenPlayConfig, id: 3)
-        screenConfigs = DBManager.share.search(
-            type: .screenPlayConfig,
-            filter: hashes.contains(Column.screenHash)
-        ).map { $0.toScreenPlayConfig() }
+        screenConfigs = DBManager.share.searchScreenPlayConfigs(sqlWhere: "screenHash IN (\(hashStr))")
         stopPlay()
         for config in screenConfigs {
             let timer = Timer.scheduledTimer(
@@ -129,10 +126,10 @@ class WallpaperManager {
     }
 
     func addOrUpdateConfig(config: ScreenPlayConfig) {
-        if config.id > 0 {
-            DBManager.share.updateScreenPlayConfig(id: config.id, item: config)
+        if config.pkid > 0 {
+            DBManager.share.update(type: .screenPlayConfig, obj: config)
         } else {
-            DBManager.share.insertScreenPlayConfig(item: config)
+            DBManager.share.insert(type: .screenPlayConfig, obj: config)
         }
         let key = config.screenHash
         screenHash2Timer[key]?.invalidate()
@@ -162,10 +159,11 @@ class WallpaperManager {
         guard let config = screenConfigs.first(where: { $0.screenHash == screenHash }),
               let monitor = getMonitor(screenHash: screenHash),
               let playlistId = config.playlistId,
-              let videos = getVideos(playlistId: playlistId) else { return }
+              let videos = getVideos(playlistId: playlistId)
+        else { return }
         let nextIndex = getNextIndex(type: config.loopType, count: videos.count, curIndex: config.curIndex)
         config.curIndex = nextIndex
-        DBManager.share.updateScreenPlayConfig(id: config.id, item: config)
+        DBManager.share.update(type: .screenPlayConfig, obj: config)
         let video = videos[nextIndex]
         if let path = video.fullFilePath() {
             refreshWindow(monitor: monitor, videoName: video.title, videoUrl: URL(fileURLWithPath: path))
@@ -187,11 +185,7 @@ class WallpaperManager {
     }
 
     func setPlaylistToMonitor(playlistId: Int, screenHash: Int) {
-        let config = getConfig(screenHash: screenHash) ?? ScreenPlayConfig(
-            screenHash: screenHash,
-            periodInMin: 5,
-            loopType: .order
-        )
+        let config = getConfig(screenHash: screenHash) ?? ScreenPlayConfig(screenHash: screenHash)
         if config.playlistId == playlistId {
             return
         }
@@ -212,16 +206,14 @@ class WallpaperManager {
 
     private func getVideos(playlistId: Int) -> [Video]? {
         guard let playlist = DBManager.share.getPlaylist(id: playlistId) else { return nil }
-        return DBManager.share.search(
-            type: .video,
-            filter: playlist.videoIdList().contains(Column.id)
-        ).map { $0.toVideo() }
+        return DBManager.share.searchVideos(sqlWhere: "rowid IN (\(playlist.videoIdInStr()))")
     }
 
     /// 这两个方法是用于设置页面初始化信息
     func getScreenPlaylistName(screenHash: Int) -> String? {
         guard let playlistId = getConfig(screenHash: screenHash)?.playlistId,
-              let playlist = DBManager.share.getPlaylist(id: playlistId) else { return nil }
+              let playlist = DBManager.share.getPlaylist(id: playlistId)
+        else { return nil }
         return playlist.title
     }
 

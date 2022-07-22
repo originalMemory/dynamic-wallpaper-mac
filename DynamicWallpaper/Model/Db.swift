@@ -4,6 +4,7 @@
 
 import Foundation
 import SQLite
+import AutoSQLiteSwift
 
 enum TableType: String, CaseIterable {
     case video
@@ -11,332 +12,76 @@ enum TableType: String, CaseIterable {
     case screenPlayConfig
 }
 
-enum Column {
-    static let id = Expression<Int>("id")
-    static let createTime = Expression<Date>("createTime")
-    static let updateTime = Expression<Date>("updateTime")
+enum OrderType: String {
+    case asc
+    case desc
+}
 
-    static let title = Expression<String>("title")
-    static let desc = Expression<String?>("description")
-    static let tags = Expression<String?>("tags")
-    static let preview = Expression<String?>("preview")
-    static let file = Expression<String>("file")
-    static let md5 = Expression<String>("md5")
-    static let wallpaperEngineId = Expression<String?>("wallpaperEngineId")
-    static let contentrating = Expression<String?>("contentrating")
-
-    static let videoIds = Expression<String>("videoIds")
-
-    static let screenHash = Expression<Int>("screenHash")
-    static let playlistId = Expression<Int?>("playlistId")
-    static let periodInMin = Expression<Int>("periodInMin")
-    static let curIndex = Expression<Int>("curIndex")
-    static let loopType = Expression<String>("loopType")
-    static let volume = Expression<Double>("volume")
+struct Order {
+    let key: String
+    let type: OrderType
 }
 
 // MARK: - Common
 
-class DBManager: NSObject {
+class DBManager {
     static let share = DBManager()
-    private var db: Connection?
-    private var tableMap: [TableType: Table] = [:]
-    private let kVersion = "dbVersion"
-    private var version = 3
+    private lazy var db: SQLiteDataBase = {
+        SQLiteDataBase.createDB("wallpaper")
+    }()
 
-    override private init() {
-        super.init()
-        checkForUpdateColumn()
+    func insert(type: TableType, obj: SQLiteModel) {
+        db.insert(obj, intoTable: type.rawValue)
     }
 
-    func getDB() -> Connection? {
-        do {
-            if db == nil {
-                let path = NSSearchPathForDirectoriesInDomains(
-                    .documentDirectory, .userDomainMask, true
-                ).first!
-                db = try Connection("\(path)/db.sqlite3")
-                db?.busyTimeout = 5.0
-            }
-            return db
-        } catch {
-            debugPrint("创建数据库出错：\(error)")
-            return nil
-        }
-    }
-
-    private func checkForUpdateColumn() {
-        let lastVersion = UserDefaults.standard.integer(forKey: kVersion)
-        if lastVersion == 0 {
-            UserDefaults.standard.set(version, forKey: kVersion)
-            return
-        }
-        do {
-            if lastVersion < 2 {
-                guard let db = getDB(),
-                      let table = getTable(type: .screenPlayConfig)
-                else { return }
-                let res = try db.run(table.addColumn(Column.curIndex, defaultValue: -1))
-                debugPrint("更新表结构：\(res)")
-            }
-            if lastVersion < 3 {
-                guard let db = getDB(),
-                      let table = getTable(type: .screenPlayConfig)
-                else { return }
-                let res = try db.run(table.addColumn(Column.volume, defaultValue: 0.0))
-                debugPrint("更新表结构：\(res)")
-            }
-            UserDefaults.standard.set(version, forKey: kVersion)
-        } catch {
-            debugPrint("更新表结构出错：\(error)")
-        }
-    }
-
-    func getTable(type: TableType) -> Table? {
-        if let table = tableMap[type] {
-            return table
-        }
-        do {
-            let table = Table(type.rawValue)
-            switch type {
-            case .video:
-                try getDB()?.run(
-                    table.create(ifNotExists: true) { builder in
-                        builder.column(Column.id, primaryKey: true)
-                        builder.column(Column.title)
-                        builder.column(Column.desc)
-                        builder.column(Column.tags)
-                        builder.column(Column.preview)
-                        builder.column(Column.file)
-                        builder.column(Column.md5)
-                        builder.column(Column.wallpaperEngineId)
-                        builder.column(Column.contentrating)
-                        builder.column(Column.createTime, defaultValue: Date.now)
-                        builder.column(Column.updateTime, defaultValue: Date.now)
-                    }
-                )
-            case .playlist:
-                try getDB()?.run(
-                    table.create(ifNotExists: true) { builder in
-                        builder.column(Column.id, primaryKey: true)
-                        builder.column(Column.title)
-                        builder.column(Column.videoIds)
-                        builder.column(Column.createTime, defaultValue: Date.now)
-                        builder.column(Column.updateTime, defaultValue: Date.now)
-                    }
-                )
-            case .screenPlayConfig:
-                try getDB()?.run(
-                    table.create(ifNotExists: true) { builder in
-                        builder.column(Column.id, primaryKey: true)
-                        builder.column(Column.screenHash)
-                        builder.column(Column.playlistId)
-                        builder.column(Column.periodInMin)
-                        builder.column(Column.curIndex)
-                        builder.column(Column.loopType)
-                        builder.column(Column.volume)
-                        builder.column(Column.createTime, defaultValue: Date.now)
-                        builder.column(Column.updateTime, defaultValue: Date.now)
-                    }
-                )
-            }
-            tableMap[type] = table
-            return table
-        } catch {
-            debugPrint("获取表出错：\(error)")
-            return nil
-        }
-    }
-
-    private func runInsert(_ insert: Insert) -> Int? {
-        do {
-            if let rowId = try getDB()?.run(insert) {
-                return Int(rowId)
-            } else {
-                return nil
-            }
-        } catch {
-            debugPrint("插入出错：\(error)")
-            return nil
-        }
-    }
-
-    // 根据条件删除
     func delete(type: TableType, id: Int) {
-        guard let query = getTable(type: type)?.filter(Column.id == id) else { return }
-        do {
-            let count = try getDB()?.run(query.delete())
-            debugPrint("删除的条数为：\(count ?? 0)")
-        } catch {
-            debugPrint("删除出错：\(error)")
-        }
+        db.delete(fromTable: type.rawValue, sqlWhere: "rowid=\(id)")
     }
 
-    func search(
-        type: TableType,
-        select: [Expressible]? = nil,
-        filter: Expression<Bool>? = nil,
-        order: [Expressible] = [rowid.asc],
-        limit: Int? = nil,
-        offset: Int? = nil
-    ) -> [Row] {
-        guard var query = getTable(type: type)?.order(order) else { return [] }
-        if let s = select {
-            query = query.select(s)
-        }
-        if let f = filter {
-            query = query.filter(f)
-        }
-        if let l = limit {
-            if let o = offset {
-                query = query.limit(l, offset: o)
-            } else {
-                query = query.limit(l)
-            }
-        }
-        do {
-            if let result = try getDB()?.prepare(query) {
-                return Array(result)
-            } else {
-                return []
-            }
-        } catch {
-            debugPrint("查找出错：\(error)")
-            return []
-        }
-    }
-
-    func exist(type: TableType, filter: Expression<Bool>) -> Bool {
-        guard let db = getDB(), let query = getTable(type: type)?.filter(filter).select(rowid) else { return false }
-        do {
-            let res = try db.prepare(query)
-            return Array(res).count >= 1
-        } catch {
-            debugPrint("查找出错：\(error)")
-            return false
-        }
-    }
-}
-
-// MARK: - Video
-
-extension DBManager {
-    func insertVideo(item: Video) -> Int? {
-        guard let table = getTable(type: .video) else { return nil }
-        let insert = table.insert(
-            Column.title <- item.title,
-            Column.desc <- item.desc,
-            Column.tags <- item.tags,
-            Column.preview <- item.preview,
-            Column.file <- item.file,
-            Column.md5 <- item.md5,
-            Column.wallpaperEngineId <- item.wallpaperEngineId,
-            Column.contentrating <- item.contentrating
-        )
-        return runInsert(insert)
-    }
-
-    // 改
-    func updateVideo(id: Int, item: Video) {
-        guard let db = getDB(), let table = getTable(type: .video) else { return }
-        do {
-            let update = table.filter(Column.id == id)
-            let count = try db.run(update.update(
-                Column.title <- item.title,
-                Column.desc <- item.desc,
-                Column.tags <- item.tags,
-                Column.preview <- item.preview,
-                Column.file <- item.file,
-                Column.md5 <- item.md5,
-                Column.wallpaperEngineId <- item.wallpaperEngineId,
-                Column.contentrating <- item.contentrating,
-                Column.updateTime <- Date.now
-            ))
-            debugPrint("更新的条数为：\(count)")
-        } catch {
-            debugPrint("更新出错：\(error)")
-        }
+    func searchVideos(sqlWhere: String? = nil, orders: [Order] = []) -> [Video] {
+        searchAll(type: .video, sqlWhere: sqlWhere, orders: orders)
     }
 
     func getVideo(id: Int) -> Video? {
-        guard let row = search(type: .video, filter: Column.id == id, limit: 1).first else { return nil }
-        return row.toVideo()
-    }
-}
-
-// MARK: - Playlist
-
-extension DBManager {
-    func insertPlaylist(item: Playlist) -> Int? {
-        guard let table = getTable(type: .playlist) else { return nil }
-        let insert = table.insert(
-            Column.title <- item.title,
-            Column.videoIds <- item.videoIds
-        )
-        return runInsert(insert)
-    }
-
-    func updatePlaylist(id: Int, item: Playlist) {
-        guard let db = getDB(), let table = getTable(type: .playlist) else { return }
-        do {
-            let update = table.filter(Column.id == id)
-            let count = try db.run(update.update(
-                Column.title <- item.title,
-                Column.videoIds <- item.videoIds,
-                Column.updateTime <- Date.now
-            ))
-            debugPrint("更新的条数为：\(count)")
-        } catch {
-            debugPrint("更新出错：\(error)")
-        }
+        searchVideos(sqlWhere: "rowId=\(id)").first
     }
 
     func getPlaylist(id: Int) -> Playlist? {
-        guard let row = search(type: .playlist, filter: Column.id == id, limit: 1).first else { return nil }
-        return row.toPlaylist()
-    }
-}
-
-// MARK: - ScreenPlayConfig
-
-extension DBManager {
-    func insertScreenPlayConfig(item: ScreenPlayConfig) {
-        guard let table = getTable(type: .screenPlayConfig) else { return }
-        let insert = table.insert(
-            Column.screenHash <- item.screenHash,
-            Column.playlistId <- item.playlistId,
-            Column.periodInMin <- item.periodInMin,
-            Column.loopType <- item.loopType.rawValue,
-            Column.curIndex <- item.curIndex,
-            Column.volume <- item.volume
-        )
-        _ = runInsert(insert)
+        searchPlaylists(sqlWhere: "rowid=\(id)").first
     }
 
-    func updateScreenPlayConfig(id: Int, item: ScreenPlayConfig) {
-        guard let db = getDB(), let table = getTable(type: .screenPlayConfig) else { return }
-        do {
-            let update = table.filter(Column.id == id)
-            let count = try db.run(update.update(
-                Column.screenHash <- item.screenHash,
-                Column.playlistId <- item.playlistId,
-                Column.periodInMin <- item.periodInMin,
-                Column.loopType <- item.loopType.rawValue,
-                Column.curIndex <- item.curIndex,
-                Column.volume <- item.volume,
-                Column.updateTime <- Date.now
-            ))
-        } catch {
-            debugPrint("更新出错：\(error)")
+    func searchPlaylists(sqlWhere: String? = nil) -> [Playlist] {
+        searchAll(type: .playlist, sqlWhere: sqlWhere)
+    }
+
+    func searchScreenPlayConfigs(sqlWhere: String? = nil) -> [ScreenPlayConfig] {
+        searchAll(type: .screenPlayConfig, sqlWhere: sqlWhere)
+    }
+
+    func searchAll<T: SQLiteModel>(
+        type: TableType,
+        sqlWhere: String? = nil,
+        limit: Int? = nil,
+        orders: [Order] = []
+    ) -> [T] {
+        var finalWhere = sqlWhere ?? "1=1"
+        if limit != nil {
+            finalWhere += " LIMIT \(limit ?? 1)"
         }
+        if orders.count > 0 {
+            finalWhere += " ORDER BY"
+        }
+        for (i, order) in orders.enumerated() {
+            finalWhere += " \(order.key) \(order.type.rawValue)" + (i < orders.count - 1 ? "," : "")
+        }
+        return db.selectModel(fromTable: type.rawValue, sqlWhere: finalWhere)
     }
 
-    func getScreenPlayConfig(screenHash: Int) -> ScreenPlayConfig? {
-        guard let row = search(
-            type: .screenPlayConfig,
-            filter: Column.screenHash == screenHash,
-            limit: 1
-        ).first else { return nil }
-        return row.toScreenPlayConfig()
+    func update(type: TableType, obj: SQLiteModel) {
+        db.update(obj, fromTable: type.rawValue)
+    }
+
+    func exist(type: TableType, sqlWhere: String) -> Bool {
+        db.select(fromTable: type.rawValue, sqlWhere: sqlWhere).count > 0
     }
 }
