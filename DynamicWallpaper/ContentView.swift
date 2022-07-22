@@ -426,11 +426,10 @@ struct ContentView: View {
             }
             .show()
         } label: {
-            // TODO: 点击区域优化，现在没有文字的区域点击无响应
             ZStack(alignment: .bottomTrailing) {
                 Text(text ?? "").frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
                 if showEditHint {
-                    Image(systemName: "square.and.pencil").padding(3)
+                    Image(systemName: "square.and.pencil").foregroundColor(.green).padding(3)
                 }
             }
             .padding(5)
@@ -457,7 +456,6 @@ struct ContentView: View {
         guard let index = videoVms.firstIndex(where: { $0.id == id }) else { return }
         var video = videoVms[index]
         videoVms[index] = video.setSelected(value: !video.isSelected)
-        // TODO: 正则
         curBelongPlaylists = enableMulti ? [] : getBelongPlaylists(videoId: video.id)
         if enablePreview {
             setWallpaper(path: video.file, title: video.title, cleanPlaylist: false)
