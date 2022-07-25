@@ -130,6 +130,12 @@ class WallpaperManager {
             DBManager.share.update(type: .screenPlayConfig, obj: config)
         } else {
             DBManager.share.insert(type: .screenPlayConfig, obj: config)
+            if let newConfig: ScreenPlayConfig = DBManager.share.searchAll(
+                type: .screenPlayConfig,
+                sqlWhere: "screenHash=\(config.screenHash)"
+            ).first {
+                screenConfigs.append(newConfig)
+            }
         }
         let key = config.screenHash
         screenHash2Timer[key]?.invalidate()
