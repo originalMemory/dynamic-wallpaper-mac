@@ -149,16 +149,16 @@ open class SQLiteDataBase: NSObject {
     ///   - object: object
     ///   - tableName: 需要插入的tableName
     public func insert(_ object: SQLiteModel, intoTable tableName: String) {
-        insert_statement(object, intoTable: tableName)
+        save_statement(object, intoTable: tableName)
     }
 
     /// 根据object修改数据库
     ///
     /// - Parameters:
     ///   - object: 需要修改的object
-    ///   - tableName: talbeName
+    ///   - tableName: tableName
     public func update(_ object: SQLiteModel, fromTable tableName: String) {
-        update_statement(object, intoTable: tableName)
+        save_statement(object, intoTable: tableName)
     }
 
     /// 查询数据
@@ -255,28 +255,28 @@ public extension SQLiteDataBase {
     class func insert_statement(_ object: SQLiteModel, intoTable tableName: String) {
         let sqliteDataBase = SQLiteDataBase.shared
 
-        sqliteDataBase.insert_statement(object, intoTable: tableName)
+        sqliteDataBase.save_statement(object, intoTable: tableName)
     }
 
     class func insertList_statement(_ objectList: [SQLiteModel], intoTable tableName: String) {
         let sqliteDataBase = SQLiteDataBase.shared
 
         for object in objectList {
-            sqliteDataBase.insert_statement(object, intoTable: tableName)
+            sqliteDataBase.save_statement(object, intoTable: tableName)
         }
     }
 
     class func update_statement(_ object: SQLiteModel, fromTable tableName: String) {
         let sqliteDataBase = SQLiteDataBase.shared
 
-        sqliteDataBase.update_statement(object, intoTable: tableName)
+        sqliteDataBase.save_statement(object, intoTable: tableName)
     }
 
     class func updateList_statement(_ objectList: [SQLiteModel], fromTable tableName: String) {
         let sqliteDataBase = SQLiteDataBase.shared
 
         for object in objectList {
-            sqliteDataBase.update_statement(object, intoTable: tableName)
+            sqliteDataBase.save_statement(object, intoTable: tableName)
         }
     }
 
@@ -402,15 +402,7 @@ public extension SQLiteDataBase {
         return "\(primaryKey) = \(primaryValue)"
     }
 
-    func insert_statement(_ object: SQLiteModel, intoTable tableName: String) {
-        save_statement(object, intoTable: tableName, isUpdate: false)
-    }
-
-    func update_statement(_ object: SQLiteModel, intoTable tableName: String) {
-        save_statement(object, intoTable: tableName, isUpdate: true)
-    }
-
-    func save_statement(_ object: SQLiteModel, intoTable tableName: String, isUpdate: Bool) {
+    func save_statement(_ object: SQLiteModel, intoTable tableName: String) {
         guard let sqlMirrorModel = SQLMirrorModel.operateByMirror(object: object) else {
             return
         }
@@ -435,10 +427,6 @@ public extension SQLiteDataBase {
 
             let s1 = "\(value)"
             let strValue = "\(value)".replacingOccurrences(of: "'", with: "''")
-
-            if strValue.contains("游云鲸梦") {
-                let d = 3
-            }
 
             if isExist == true { // 存在
                 /// 如果字段不存在，则创建
@@ -539,42 +527,22 @@ public extension SQLiteDataBase {
     }
 
     func addColumnIfNoExist_statement(_ columnName: String, tableName: String, type: String) {
-        do {
-            if tableExists(tableName: tableName) == false {
-                return
-            }
-
-            guard let databaseName = databaseName else {
-                return
-            }
-
-            guard let database = database else {
-                return
-            }
-
-            let sqlStr = "select COLUMN_NAME from information_schema.COLUMNS where table_name = ' " + tableName +
-                "' and table_schema = ' " + databaseName + "';"
-
-            let oldColumnNames = prepare(sqlStr).map({ (dic: [String: AnyObject]) -> String in
-                dic.keys.first ?? ""
-            })
-
-            var isExist = false
-            for oldColumnName in oldColumnNames {
-                if columnName == oldColumnName {
-                    isExist = true
-                    break
-                }
-            }
-
-            if !isExist {
-                let alterSqlStr = "ALTER TABLE " + tableName + " ADD \(columnName) \(type)"
-
-                execute(alterSqlStr)
-            }
-        } catch {
-            sqlitePrint(error)
+        let sqlStr = "select sql from sqlite_master where type='table' and name='\(tableName)';"
+        guard tableExists(tableName: tableName),
+              let tableSql = prepare(sqlStr).first?["sql"] as? String,
+              let start = tableSql.firstIndex(of: "("),
+              let end = tableSql.lastIndex(of: ")")
+        else {
+            return
         }
+        // pkid INTEGER UNIQUE PRIMARY KEY NOT NULL,title TEXT,desc TEXT,tags TEXT
+        let columnStr = tableSql.substring(with: (tableSql.index(start, offsetBy: 1))..<end)
+        // TODO： 修改列类型
+        if columnStr.contains(columnName) {
+            return
+        }
+        let alterSqlStr = "ALTER TABLE " + tableName + " ADD \(columnName) \(type)"
+        execute(alterSqlStr)
     }
 
     // https://github.com/stephencelis/SQLite.swift/issues/6
