@@ -13,7 +13,7 @@ Pod::Spec.new do |s|
   s.source           = { :git => 'https://github.com/TonyReet/AutoSQLite.swift.git', :tag => s.version.to_s}
   
   s.platform = :osx
-  s.osx.deployment_target = "10.10"
+  s.osx.deployment_target = "10.15"
 
   s.source_files = 'Source/*.swift'
 

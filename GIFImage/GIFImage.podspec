@@ -22,7 +22,7 @@ Pod::Spec.new do |s|
   # s.social_media_url = 'https://twitter.com/<TWITTER_USERNAME>'
 
   s.platform = :osx
-  s.osx.deployment_target = "10.10"
+  s.osx.deployment_target = "12.0"
 
   s.source_files = 'GIFImage/Classes/**/*'
 

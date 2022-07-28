@@ -736,7 +736,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CB57479F2FBFAB1722EAF8DC /* Pods-DynamicWallpaper-DynamicWallpaperUITests.debug.xcconfig */;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = "$(inherited)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -753,7 +753,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 5786DF2DF2344B30B612F292 /* Pods-DynamicWallpaper-DynamicWallpaperUITests.release.xcconfig */;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = "$(inherited)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
